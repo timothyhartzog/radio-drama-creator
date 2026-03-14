@@ -1,0 +1,242 @@
+{
+  "source_path": "/Users/timothyhartzog/Documents/GitHub/radio-drama-creator/examples/sample_source.txt",
+  "analysis": {
+    "title": "The Rain Had A Way Of Making The City Sound Older Than It Was",
+    "summary": "The rain had a way of making the city sound older than it was. Themes include street, looked, evelyn. Conflict focus: By midnight the lamps on Mercer Street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+    "themes": [
+      "street",
+      "looked",
+      "evelyn",
+      "office",
+      "making"
+    ],
+    "setting": "A restless city after dark",
+    "mood": "brooding suspense",
+    "characters": [
+      "Hale",
+      "Evelyn",
+      "Inspector",
+      "Somewhere"
+    ],
+    "conflicts": [
+      "By midnight the lamps on Mercer Street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+      "The driver never looked up, but the ember of his cigarette glowed like a warning."
+    ],
+    "source_excerpt": "The rain had a way of making the city sound older than it was. By midnight the lamps on Mercer Street were halos in the mist, and every passerby looked like someone with a secret to keep. Evelyn had been waiting outside the telegraph office for nearly an hour when the final message came through. It was brief, unsigned, and impossible to misunderstand: do not trust the man with the silver watch. She read it twice before folding the paper into her glove. Across the street, a taxi idled under the awning of the Astor Hotel."
+  },
+  "scenes": [
+    {
+      "title": "Scene 1: By Midnight The Lamps On",
+      "announcer_intro": "From the velvet hush of the broadcast booth, our story returns to a restless city after dark, where this mystery unfolds: the rain had a way of making the city sound older than it was. themes include street, looked, evelyn. conflict focus: by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+      "ambience": "Soft orchestral bed, distant room tone, and the atmosphere of a restless city after dark.",
+      "beats": [
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for street, and for the trouble hidden in by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+          "emotion": "measured",
+          "cue": "organ swell"
+        },
+        {
+          "speaker": "Hale",
+          "text": "There is still time, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, somebody already knows more than they admit, and every sign points back to looked.",
+          "emotion": "tense",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "You heard it too, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, the room has turned against us, and every sign points back to evelyn.",
+          "emotion": "tense",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "We cannot keep pretending, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, silence will not protect anyone tonight, and every sign points back to office.",
+          "emotion": "urgent",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for making, and for the trouble hidden in by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+          "emotion": "tense",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Hale",
+          "text": "Listen to me, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, we are standing too close to the truth, and every sign points back to street.",
+          "emotion": "tense",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "There is still time, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, somebody already knows more than they admit, and every sign points back to looked.",
+          "emotion": "urgent",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "You heard it too, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, the room has turned against us, and every sign points back to evelyn.",
+          "emotion": "tense",
+          "cue": "low room tone"
+        }
+      ],
+      "closing": "The orchestra rises, a warning wrapped in brass and strings, as the moment breaks and the darkness answers back."
+    },
+    {
+      "title": "Scene 2: The Driver Never Looked Up",
+      "announcer_intro": "From the velvet hush of the broadcast booth, our story returns to a restless city after dark, where this mystery unfolds: the rain had a way of making the city sound older than it was. themes include street, looked, evelyn. conflict focus: by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+      "ambience": "Closer microphones, tighter silence, and a faint mechanical hum beneath the voices.",
+      "beats": [
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for looked, and for the trouble hidden in the driver never looked up, but the ember of his cigarette glowed like a warning.",
+          "emotion": "measured",
+          "cue": "organ swell"
+        },
+        {
+          "speaker": "Hale",
+          "text": "You heard it too, because the driver never looked up, but the ember of his cigarette glowed like a warning, silence will not protect anyone tonight, and every sign points back to evelyn.",
+          "emotion": "tense",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "We cannot keep pretending, because the driver never looked up, but the ember of his cigarette glowed like a warning, one wrong step will expose everything, and every sign points back to office.",
+          "emotion": "tense",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "The truth has a way of arriving, because the driver never looked up, but the ember of his cigarette glowed like a warning, we are standing too close to the truth, and every sign points back to making.",
+          "emotion": "urgent",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for street, and for the trouble hidden in the driver never looked up, but the ember of his cigarette glowed like a warning.",
+          "emotion": "anxious",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Hale",
+          "text": "There is still time, because the driver never looked up, but the ember of his cigarette glowed like a warning, the room has turned against us, and every sign points back to looked.",
+          "emotion": "anxious",
+          "cue": "door latch clicks"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "You heard it too, because the driver never looked up, but the ember of his cigarette glowed like a warning, silence will not protect anyone tonight, and every sign points back to evelyn.",
+          "emotion": "urgent",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "We cannot keep pretending, because the driver never looked up, but the ember of his cigarette glowed like a warning, one wrong step will expose everything, and every sign points back to office.",
+          "emotion": "anxious",
+          "cue": "door latch clicks"
+        }
+      ],
+      "closing": "The orchestra rises, a warning wrapped in brass and strings, as the moment breaks and the darkness answers back."
+    },
+    {
+      "title": "Scene 3: By Midnight The Lamps On",
+      "announcer_intro": "From the velvet hush of the broadcast booth, our story returns to a restless city after dark, where this mystery unfolds: the rain had a way of making the city sound older than it was. themes include street, looked, evelyn. conflict focus: by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+      "ambience": "Stormy underscore, rising strings, and a final pulse of dread.",
+      "beats": [
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for evelyn, and for the trouble hidden in by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+          "emotion": "measured",
+          "cue": "organ swell"
+        },
+        {
+          "speaker": "Hale",
+          "text": "We cannot keep pretending, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, we are standing too close to the truth, and every sign points back to office.",
+          "emotion": "haunted",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "The truth has a way of arriving, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, somebody already knows more than they admit, and every sign points back to making.",
+          "emotion": "haunted",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "Listen to me, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, the room has turned against us, and every sign points back to street.",
+          "emotion": "urgent",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Narrator",
+          "text": "In that suspended hour, a restless city after dark seemed to lean inward, as if even the walls had begun to listen for looked, and for the trouble hidden in by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep.",
+          "emotion": "haunted",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Hale",
+          "text": "You heard it too, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, one wrong step will expose everything, and every sign points back to evelyn.",
+          "emotion": "haunted",
+          "cue": "low room tone"
+        },
+        {
+          "speaker": "Evelyn",
+          "text": "We cannot keep pretending, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, we are standing too close to the truth, and every sign points back to office.",
+          "emotion": "urgent",
+          "cue": "footsteps under dialogue"
+        },
+        {
+          "speaker": "Inspector",
+          "text": "The truth has a way of arriving, because by midnight the lamps on mercer street were halos in the mist, and every passerby looked like someone with a secret to keep, somebody already knows more than they admit, and every sign points back to making.",
+          "emotion": "haunted",
+          "cue": "low room tone"
+        }
+      ],
+      "closing": "The orchestra rises, a warning wrapped in brass and strings, as the moment breaks and the darkness answers back."
+    }
+  ],
+  "cast": [
+    {
+      "character": "Narrator",
+      "voice": "Albert",
+      "role": "Narrator",
+      "pace_wpm": 165,
+      "pitch": 42
+    },
+    {
+      "character": "Hale",
+      "voice": "Samantha",
+      "role": "Hale",
+      "pace_wpm": 185,
+      "pitch": 50
+    },
+    {
+      "character": "Evelyn",
+      "voice": "Karen",
+      "role": "Evelyn",
+      "pace_wpm": 185,
+      "pitch": 52
+    },
+    {
+      "character": "Inspector",
+      "voice": "Daniel",
+      "role": "Inspector",
+      "pace_wpm": 185,
+      "pitch": 54
+    },
+    {
+      "character": "Witness",
+      "voice": "Moira",
+      "role": "Witness",
+      "pace_wpm": 185,
+      "pitch": 56
+    },
+    {
+      "character": "Shadow",
+      "voice": "Am\u00e9lie",
+      "role": "Shadow",
+      "pace_wpm": 185,
+      "pitch": 58
+    }
+  ],
+  "output_dir": "/Users/timothyhartzog/Documents/GitHub/radio-drama-creator/output_script_direct"
+}

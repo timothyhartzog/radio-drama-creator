@@ -1,0 +1,42 @@
+{
+  "models": {
+    "script_backend": "heuristic",
+    "mlx_model": "mlx-community/Qwen3-8B-4bit",
+    "script_preset": "qwen3-8b",
+    "vision_backend": "none",
+    "vision_model": "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+    "vision_preset": "qwen2.5-vl-7b",
+    "asr_model": "mlx-community/whisper-large-v3-turbo-asr-fp16",
+    "aligner_model": "mlx-community/Qwen3-ForcedAligner-0.6B-8bit",
+    "max_new_tokens": 1400,
+    "temperature": 0.8
+  },
+  "audio": {
+    "renderer": "say",
+    "tts_model": "mlx-community/Dia-1.6B-fp16",
+    "tts_preset": "dia-1.6b",
+    "tts_voice": "",
+    "tts_language": "English",
+    "tts_lang_code": "a",
+    "sample_rate": 22050,
+    "line_gap_ms": 350,
+    "scene_gap_ms": 1200,
+    "include_closing_scene_gap": false
+  },
+  "style": {
+    "scenes": 3,
+    "lines_per_scene": 8,
+    "decade_flavor": "1930s golden-age radio",
+    "tone": "suspenseful, theatrical, intimate",
+    "genre": "mystery",
+    "announcer_name": "Narrator"
+  },
+  "casting": {
+    "voice_overrides": {
+      "Narrator": "Tom"
+    },
+    "pace_overrides": {
+      "Narrator": 165
+    }
+  }
+}

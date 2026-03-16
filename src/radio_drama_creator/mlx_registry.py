@@ -82,6 +82,35 @@ SCRIPT_MODEL_PRESETS: dict[str, MLXModelPreset] = {
         role="script",
         notes="Microsoft's compact model with strong instruction following and creative output.",
     ),
+    # --- Biblical / Literary analysis specialists ---
+    "hermes-2-mixtral-8x7b": MLXModelPreset(
+        key="hermes-2-mixtral-8x7b",
+        repo="mlx-community/Nous-Hermes-2-Mixtral-8x7B-DPO-4bit",
+        family="hermes",
+        role="script",
+        notes="Best for biblical/literary analysis. Strong theological reasoning, nuanced dialogue. MoE architecture.",
+    ),
+    "hermes-3-llama-8b": MLXModelPreset(
+        key="hermes-3-llama-8b",
+        repo="mlx-community/Hermes-2-Pro-Llama-3-8B-8bit",
+        family="hermes",
+        role="script",
+        notes="Hermes instruction tuning on Llama 3. Good for scripture-to-drama with 8GB RAM.",
+    ),
+    "qwen3-drama-8b": MLXModelPreset(
+        key="qwen3-drama-8b",
+        repo="FutureMa/Qwen3-8B-Drama-Thinking",
+        family="qwen3",
+        role="script",
+        notes="Fine-tuned on 6K+ drama scripts with reasoning chains. Best for screenplay-style output.",
+    ),
+    "mistral-nemo-12b": MLXModelPreset(
+        key="mistral-nemo-12b",
+        repo="mlx-community/Mistral-Nemo-Instruct-2407-4bit",
+        family="mistral",
+        role="script",
+        notes="128K context. Popular creative-writing model. Strong dialogue and character voice.",
+    ),
 }
 
 # ---------------------------------------------------------------------------

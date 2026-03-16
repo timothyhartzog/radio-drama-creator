@@ -190,6 +190,122 @@
         </div>
     </div>
 
+    <!-- Fine-Tuning Guide -->
+    <div class="section">
+        <div class="section-header" style="cursor:pointer;" onclick="document.getElementById('finetuneContent').classList.toggle('hidden')">
+            <h2>Fine-Tune for Creative Writing / Biblical Drama</h2>
+            <span class="badge" style="background:#fef3c7;color:#92400e;">LoRA Guide</span>
+        </div>
+        <div id="finetuneContent" class="hidden" style="padding:1.2rem; font-size:0.85rem; line-height:1.7;">
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Why Fine-Tune?</h3>
+            <p style="color:var(--muted); margin-bottom:1rem;">
+                Base models are good at general creative writing, but fine-tuning with LoRA lets you teach a model
+                your specific radio drama format — SFX cues, narrator style, character voice directions, and how to
+                adapt biblical/literary source material into dramatic scripts. A 300–500 example dataset can transform output quality.
+            </p>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Recommended Base Models for Fine-Tuning</h3>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:1rem; font-size:0.8rem;">
+                <thead><tr style="border-bottom:2px solid var(--border); text-align:left;">
+                    <th style="padding:0.4rem;">Model</th><th style="padding:0.4rem;">RAM</th><th style="padding:0.4rem;">Best For</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Qwen3-8B-4bit</td>
+                        <td style="padding:0.4rem;">~7 GB</td>
+                        <td style="padding:0.4rem;">Best post-fine-tune quality. Already has a drama variant (Qwen3-8B-Drama-Thinking).</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Mistral-Nemo-12B-4bit</td>
+                        <td style="padding:0.4rem;">~8 GB</td>
+                        <td style="padding:0.4rem;">128K context. Popular creative-writing base. Strong narrative + character voices.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Llama-3.1-8B-4bit</td>
+                        <td style="padding:0.4rem;">~6 GB</td>
+                        <td style="padding:0.4rem;">Greatest improvement from LoRA. Huge community ecosystem.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.4rem;font-weight:600;">Hermes-2-Mixtral-8x7B-4bit</td>
+                        <td style="padding:0.4rem;">~26 GB</td>
+                        <td style="padding:0.4rem;">Best for biblical/theological analysis. Strong nuanced reasoning.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 1: Prepare Training Data</h3>
+            <p style="color:var(--muted); margin-bottom:0.5rem;">Create <code>train.jsonl</code> and <code>valid.jsonl</code> in chat format:</p>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:1rem;"><code>{"messages": [
+  {"role": "system", "content": "You are a radio drama scriptwriter specializing in biblical adaptations."},
+  {"role": "user", "content": "Convert Genesis 22:1-14 (The Binding of Isaac) into a radio drama scene."},
+  {"role": "assistant", "content": "[MUSIC: Ancient strings, somber]\n\nNARRATOR: (gravely) And it came to pass that God tested Abraham.\n\n[SFX: Desert wind, distant sheep bleating]\n\nGOD: (thundering, echoing) Abraham!\n\nABRAHAM: (kneeling) Here I am, Lord.\n\nGOD: Take your son — your only son Isaac, whom you love — and go to Moriah.\n\n[SFX: Abraham's sharp intake of breath]\n\nNARRATOR: (hushed) Three words seared into his heart. Your only son.\n\n[MUSIC: Tension builds with low drums]"}
+]}</code></pre>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 2: Fine-Tune with LoRA</h3>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:0.5rem;"><code># Install mlx-lm
+pip install mlx-lm
+
+# Fine-tune (QLoRA — works on 16GB Macs)
+mlx_lm.lora \
+  --model mlx-community/Qwen3-8B-4bit \
+  --data ./radio_drama_data \
+  --train \
+  --batch-size 2 \
+  --iters 600 \
+  --num-layers 16 \
+  --mask-prompt \
+  --grad-checkpoint \
+  --adapter-path ./adapters/biblical_drama</code></pre>
+            <p style="color:var(--muted); font-size:0.78rem; margin-bottom:1rem;">
+                <strong>Key flags:</strong> <code>--mask-prompt</code> learns output style (not input memorization).
+                <code>--grad-checkpoint</code> reduces memory. <code>--num-layers 16</code> balances quality vs. speed.
+            </p>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 3: Test Your Adapter</h3>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:1rem;"><code># Generate with adapter (base model + adapter loaded separately)
+mlx_lm.generate \
+  --model mlx-community/Qwen3-8B-4bit \
+  --adapter-path ./adapters/biblical_drama \
+  --prompt "Convert Psalm 23 into a radio drama scene with narrator and voices." \
+  --max-tokens 1024
+
+# Fuse adapter permanently into a new model
+mlx_lm.fuse \
+  --model mlx-community/Qwen3-8B-4bit \
+  --adapter-path ./adapters/biblical_drama \
+  --save-path ./models/biblical-drama-qwen3-8b</code></pre>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Useful Datasets</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead><tr style="border-bottom:2px solid var(--border); text-align:left;">
+                    <th style="padding:0.4rem;">Dataset</th><th style="padding:0.4rem;">What</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>FutureMa/DramaBench</code></td>
+                        <td style="padding:0.4rem;">1,103 professional scripts in Fountain format. Best drama training data.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>aneeshas/imsdb-drama-movie-scripts</code></td>
+                        <td style="padding:0.4rem;">Drama movie scripts from IMSDB. Good for dialogue style.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>bible-nlp/biblenlp-corpus</code></td>
+                        <td style="padding:0.4rem;">Multi-language parallel Bible corpus for theological grounding.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>Nitral-AI/Creative_Writing-ShareGPT</code></td>
+                        <td style="padding:0.4rem;">Creative writing examples in chat format. Ready for mlx-lm.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.4rem;"><code>euclaise/writingprompts</code></td>
+                        <td style="padding:0.4rem;">~4B tokens of creative writing from r/WritingPrompts.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Confirm Dialog -->
     <div class="confirm-overlay hidden" id="confirmOverlay">
         <div class="confirm-box">
@@ -216,6 +332,11 @@
             'mistral-small-3-8b': { tag: 'fast', label: 'Fastest', tip: 'Highest tokens/sec on mid-range hardware.' },
             'gemma-3-12b': { tag: 'quality', label: 'Storytelling', tip: 'Strong storytelling with good JSON adherence.' },
             'phi-4-14b': { tag: 'fast', label: 'Compact', tip: 'Microsoft. Compact with strong instruction following.' },
+            // Biblical / Literary analysis
+            'hermes-2-mixtral-8x7b': { tag: 'best', label: 'Biblical', tip: 'Best for scripture analysis and theological drama. Strong nuanced reasoning.' },
+            'hermes-3-llama-8b': { tag: 'fast', label: 'Scripture', tip: 'Hermes instruction tuning. Good scripture-to-drama on 8GB.' },
+            'qwen3-drama-8b': { tag: 'quality', label: 'Drama AI', tip: 'Pre-trained on 6K+ drama scripts. Screenplay reasoning chains.' },
+            'mistral-nemo-12b': { tag: 'quality', label: '128K Ctx', tip: '128K context. Handles entire books. Strong character voice.' },
             // TTS models
             'dia-1.6b': { tag: 'best', label: 'Drama', tip: 'Built for radio drama. Multi-speaker + emotion tags.' },
             'qwen3-tts-1.7b': { tag: 'quality', label: 'Audiobook', tip: 'Best quality. Voice cloning + 10 languages.' },

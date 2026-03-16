@@ -3,27 +3,35 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import tempfile
+import traceback
 import uuid
-from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..config import AppConfig
 from ..metadata import get_ebook_metadata_with_cover
 from ..mlx_registry import available_model_presets
 from ..pipeline import run_pipeline
-from ..utils.audio_utils import convert_audio_file_formats, merge_chapters_to_m4b
+from ..utils.audio_utils import convert_audio_file_formats
 from ..utils.shell_utils import (
     check_if_calibre_is_installed,
     check_if_ffmpeg_is_installed,
 )
+
+logger = logging.getLogger("radio_drama_creator.web")
+
+ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".rtf", ".doc", ".docx", ".epub"}
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
+ALLOWED_OUTPUT_FORMATS = {"mp3", "wav", "opus", "flac", "aac", "pcm", "m4a"}
+ALLOWED_BACKENDS = {"heuristic", "mlx"}
+ALLOWED_RENDERERS = {"script", "say", "mlx_audio"}
 
 app = FastAPI(
     title="Radio Drama Creator",
@@ -43,23 +51,77 @@ _jobs: dict[str, dict] = {}
 
 
 # ---------------------------------------------------------------------------
+# Global error handler
+# ---------------------------------------------------------------------------
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch unhandled exceptions and return structured JSON errors."""
+    logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": str(exc),
+            "error_type": type(exc).__name__,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+def _validate_file_id(file_id: str) -> Path:
+    """Validate a file_id and return the path, or raise HTTPException."""
+    if not file_id or not file_id.isalnum():
+        raise HTTPException(status_code=400, detail="Invalid file ID.")
+    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
+    if not matches:
+        raise HTTPException(status_code=404, detail="Uploaded file not found.")
+    return matches[0]
+
+
+def _validate_job_id(job_id: str) -> dict:
+    """Validate a job_id and return job data, or raise HTTPException."""
+    if not job_id or not job_id.isalnum():
+        raise HTTPException(status_code=400, detail="Invalid job ID.")
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return _jobs[job_id]
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Strip path components to prevent directory traversal."""
+    return Path(filename).name
+
+
+# ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Main page with the production form."""
-    presets = available_model_presets()
+    try:
+        presets = available_model_presets()
+    except Exception:
+        presets = {"script": [], "tts": [], "vision": []}
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "script_presets": [p.key for p in presets["script"]],
-        "tts_presets": [p.key for p in presets["tts"]],
+        "script_presets": [p.key for p in presets.get("script", [])],
+        "tts_presets": [p.key for p in presets.get("tts", [])],
         "genres": [
             "mystery", "thriller", "romance", "sci-fi", "horror",
             "comedy", "drama", "noir", "western", "fantasy",
         ],
-        "renderers": ["script", "say", "mlx_audio"],
+        "renderers": sorted(ALLOWED_RENDERERS),
     })
+
+
+@app.get("/catalog", response_class=HTMLResponse)
+async def catalog(request: Request):
+    """Function and task catalog page."""
+    return templates.TemplateResponse("catalog.html", {"request": request})
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +141,10 @@ async def health_check():
 @app.get("/api/models")
 async def list_models():
     """List available MLX model presets."""
-    presets = available_model_presets()
+    try:
+        presets = available_model_presets()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not load presets: {exc}")
     return {
         role: [{"key": p.key, "repo": p.repo, "notes": p.notes} for p in items]
         for role, items in presets.items()
@@ -96,22 +161,39 @@ async def upload_book(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected.")
 
-    file_id = uuid.uuid4().hex[:12]
-    ext = Path(file.filename).suffix
-    save_path = UPLOAD_DIR / f"{file_id}{ext}"
-    with open(save_path, "wb") as fh:
-        shutil.copyfileobj(file.file, fh)
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
 
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File exceeds 100 MB size limit.")
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    file_id = uuid.uuid4().hex[:12]
+    save_path = UPLOAD_DIR / f"{file_id}{ext}"
+    try:
+        save_path.write_bytes(content)
+    except OSError as exc:
+        logger.error("Failed to save upload: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to save uploaded file.")
+
+    logger.info("Uploaded %s as %s (%d bytes)", file.filename, file_id, len(content))
     return {"file_id": file_id, "filename": file.filename, "path": str(save_path)}
 
 
 @app.get("/api/metadata/{file_id}")
 async def get_metadata(file_id: str):
     """Extract metadata from an uploaded ebook."""
-    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
-    if not matches:
-        raise HTTPException(status_code=404, detail="File not found.")
-    metadata = get_ebook_metadata_with_cover(str(matches[0]))
+    file_path = _validate_file_id(file_id)
+    try:
+        metadata = get_ebook_metadata_with_cover(str(file_path))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not extract metadata: {exc}")
     return metadata
 
 
@@ -132,11 +214,17 @@ async def produce_radio_drama(
     tone: str = Form("suspenseful, theatrical, intimate"),
 ):
     """Run the full radio drama production pipeline."""
-    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
-    if not matches:
-        raise HTTPException(status_code=404, detail="Uploaded file not found.")
+    file_path = _validate_file_id(file_id)
 
-    source_path = str(matches[0])
+    # Validate inputs
+    if script_backend not in ALLOWED_BACKENDS:
+        raise HTTPException(status_code=400, detail=f"Invalid backend '{script_backend}'.")
+    if renderer not in ALLOWED_RENDERERS:
+        raise HTTPException(status_code=400, detail=f"Invalid renderer '{renderer}'.")
+    scenes = max(1, min(scenes, 20))
+    lines_per_scene = max(1, min(lines_per_scene, 50))
+    tone = tone[:200]
+
     job_id = uuid.uuid4().hex[:12]
     job_output = OUTPUT_DIR / job_id
     job_output.mkdir(parents=True, exist_ok=True)
@@ -152,32 +240,40 @@ async def produce_radio_drama(
     config.audio.tts_preset = tts_preset
 
     _jobs[job_id] = {"status": "running", "output_dir": str(job_output)}
+    logger.info("Starting job %s for file %s", job_id, file_id)
 
     try:
-        package = run_pipeline(source_path, str(job_output), config)
+        package = run_pipeline(str(file_path), str(job_output), config)
         _jobs[job_id]["status"] = "complete"
         _jobs[job_id]["result"] = package.to_dict()
+        logger.info("Job %s completed successfully", job_id)
         return {"job_id": job_id, "status": "complete", "output_dir": str(job_output)}
+    except FileNotFoundError as exc:
+        _jobs[job_id]["status"] = "error"
+        _jobs[job_id]["error"] = str(exc)
+        raise HTTPException(status_code=404, detail=f"Source file error: {exc}")
+    except ValueError as exc:
+        _jobs[job_id]["status"] = "error"
+        _jobs[job_id]["error"] = str(exc)
+        raise HTTPException(status_code=422, detail=f"Validation error: {exc}")
     except Exception as exc:
         _jobs[job_id]["status"] = "error"
         _jobs[job_id]["error"] = str(exc)
+        logger.error("Job %s failed: %s", job_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.get("/api/jobs/{job_id}")
 async def get_job_status(job_id: str):
     """Check the status of a production job."""
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    return _jobs[job_id]
+    return _validate_job_id(job_id)
 
 
 @app.get("/api/jobs/{job_id}/files")
 async def list_job_files(job_id: str):
     """List output files for a completed job."""
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    job_dir = Path(_jobs[job_id]["output_dir"])
+    job = _validate_job_id(job_id)
+    job_dir = Path(job["output_dir"])
     if not job_dir.exists():
         raise HTTPException(status_code=404, detail="Output directory missing.")
     files = [
@@ -191,12 +287,17 @@ async def list_job_files(job_id: str):
 @app.get("/api/jobs/{job_id}/download/{filename}")
 async def download_file(job_id: str, filename: str):
     """Download a specific output file."""
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    file_path = Path(_jobs[job_id]["output_dir"]) / filename
+    job = _validate_job_id(job_id)
+    safe_name = _sanitize_filename(filename)
+    file_path = Path(job["output_dir"]) / safe_name
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found.")
-    return FileResponse(str(file_path), filename=filename)
+    # Ensure the resolved path is within the job output directory
+    try:
+        file_path.resolve().relative_to(Path(job["output_dir"]).resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid file path.")
+    return FileResponse(str(file_path), filename=safe_name)
 
 
 # ---------------------------------------------------------------------------
@@ -210,10 +311,17 @@ async def convert_audio(
     output_format: str = Form(...),
 ):
     """Convert an output audio file to another format."""
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    job_dir = Path(_jobs[job_id]["output_dir"])
-    source = job_dir / filename
+    job = _validate_job_id(job_id)
+    output_format = output_format.lower().strip()
+    if output_format not in ALLOWED_OUTPUT_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported format '{output_format}'. Allowed: {', '.join(sorted(ALLOWED_OUTPUT_FORMATS))}",
+        )
+
+    job_dir = Path(job["output_dir"])
+    safe_name = _sanitize_filename(filename)
+    source = job_dir / safe_name
     if not source.exists():
         raise HTTPException(status_code=404, detail="Source file not found.")
 
@@ -221,14 +329,17 @@ async def convert_audio(
     input_fmt = source.suffix.lstrip(".")
     try:
         convert_audio_file_formats(input_fmt, output_format, str(job_dir), stem)
+    except FileNotFoundError:
+        raise HTTPException(status_code=422, detail="ffmpeg not found. Install ffmpeg to convert audio.")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.error("Audio conversion failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {exc}")
 
     return {"converted": f"{stem}.{output_format}"}
 
 
 # ---------------------------------------------------------------------------
-# Character Identification (from audiobook-creator)
+# Character Identification
 # ---------------------------------------------------------------------------
 
 @app.post("/api/identify-characters")
@@ -240,29 +351,43 @@ async def identify_characters(
     from ..book_extraction import process_book_and_extract_text
     from ..character_identification import identify_characters_and_output_book_to_jsonl
 
-    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
-    if not matches:
-        raise HTTPException(status_code=404, detail="File not found.")
-
-    source_path = str(matches[0])
-    messages = []
+    file_path = _validate_file_id(file_id)
+    messages: list[str] = []
 
     try:
-        text = Path(source_path).read_text(encoding="utf-8", errors="ignore")
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
-        for msg in process_book_and_extract_text(source_path, "calibre"):
-            messages.append(msg)
-        text = Path("converted_book.txt").read_text(encoding="utf-8", errors="ignore")
+        try:
+            for msg in process_book_and_extract_text(str(file_path), "calibre"):
+                messages.append(msg)
+            converted = Path("converted_book.txt")
+            if not converted.exists():
+                raise HTTPException(status_code=422, detail="Text extraction failed - no output produced.")
+            text = converted.read_text(encoding="utf-8", errors="ignore")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Text extraction failed: {exc}")
 
-    for msg in identify_characters_and_output_book_to_jsonl(
-        text, protagonist or "Protagonist", output_dir=str(UPLOAD_DIR)
-    ):
-        messages.append(msg)
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No readable text found in document.")
+
+    try:
+        for msg in identify_characters_and_output_book_to_jsonl(
+            text, protagonist.strip() or "Protagonist", output_dir=str(UPLOAD_DIR)
+        ):
+            messages.append(msg)
+    except Exception as exc:
+        logger.error("Character identification failed: %s", exc, exc_info=True)
+        messages.append(f"Character identification error: {exc}")
 
     chars_file = UPLOAD_DIR / "characters_info.json"
     characters = []
     if chars_file.exists():
-        characters = json.loads(chars_file.read_text(encoding="utf-8"))
+        try:
+            characters = json.loads(chars_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            messages.append("Warning: Could not parse character results file.")
 
     return {"messages": messages, "characters": characters}
 
@@ -277,21 +402,29 @@ async def extract_text(
     method: str = Form("native"),
 ):
     """Extract text from an uploaded book using the specified method."""
-    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
-    if not matches:
-        raise HTTPException(status_code=404, detail="File not found.")
+    file_path = _validate_file_id(file_id)
 
-    source_path = str(matches[0])
+    if method not in ("native", "calibre", "textract"):
+        raise HTTPException(status_code=400, detail=f"Unknown extraction method '{method}'.")
 
     if method == "native":
         from ..ingest import load_document
-        chunks = load_document(source_path)
+        try:
+            chunks = load_document(str(file_path))
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         text = " ".join(c.text for c in chunks)
         return {"method": "native", "char_count": len(text), "preview": text[:2000]}
     else:
         from ..book_extraction import process_book_and_extract_text
-        messages = list(process_book_and_extract_text(source_path, method))
-        text = Path("converted_book.txt").read_text(encoding="utf-8", errors="ignore") if Path("converted_book.txt").exists() else ""
+        try:
+            messages = list(process_book_and_extract_text(str(file_path), method))
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Extraction failed: {exc}")
+        converted = Path("converted_book.txt")
+        text = converted.read_text(encoding="utf-8", errors="ignore") if converted.exists() else ""
         return {"method": method, "messages": messages, "char_count": len(text), "preview": text[:2000]}
 
 

@@ -6,109 +6,179 @@
     <title>Radio Drama Creator</title>
     <style>
         :root {
-            --bg: #1a1a2e;
-            --surface: #16213e;
-            --primary: #e94560;
-            --accent: #0f3460;
-            --text: #eee;
-            --muted: #999;
-            --success: #4caf50;
-            --border: #2a2a4a;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #e0e7ff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            line-height: 1.5;
         }
         header {
             background: var(--surface);
-            border-bottom: 2px solid var(--primary);
-            padding: 1.2rem 2rem;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        header h1 { font-size: 1.5rem; letter-spacing: 1px; }
-        header .health { font-size: 0.85rem; color: var(--muted); }
-        header .health .dot {
-            display: inline-block;
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.3px;
+        }
+        .health {
+            font-size: 0.8rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
             width: 8px; height: 8px;
             border-radius: 50%;
             background: var(--muted);
-            margin-right: 4px;
-            vertical-align: middle;
         }
-        header .health .dot.ok { background: var(--success); }
+        .dot.ok { background: var(--success); }
+        .dot.error { background: var(--danger); }
         .container {
-            max-width: 1100px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
+            max-width: 960px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
         }
         .card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
         }
         .card h2 {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
+            font-weight: 600;
             margin-bottom: 1rem;
-            color: var(--primary);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 0.5rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .step {
+            background: var(--primary);
+            color: white;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
         }
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            gap: 0.75rem;
         }
-        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
         .form-group.full { grid-column: 1 / -1; }
-        label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         input, select, textarea {
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 0.6rem 0.8rem;
-            border-radius: 4px;
-            font-size: 0.95rem;
+            padding: 0.55rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
         }
-        input[type="file"] { padding: 0.4rem; }
+        input[type="file"] {
+            padding: 0.4rem;
+            cursor: pointer;
+        }
+        input[type="file"]::file-selector-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
         button {
             background: var(--primary);
             color: white;
             border: none;
-            padding: 0.7rem 1.5rem;
-            border-radius: 4px;
-            font-size: 1rem;
+            padding: 0.55rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: background 0.15s, transform 0.1s;
+            font-family: inherit;
         }
-        button:hover { opacity: 0.85; }
+        button:hover:not(:disabled) { background: var(--primary-hover); }
+        button:active:not(:disabled) { transform: scale(0.98); }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         button.secondary {
-            background: var(--accent);
-        }
-        .actions { display: flex; gap: 0.8rem; margin-top: 1rem; }
-        #log {
-            background: #111;
+            background: var(--bg);
+            color: var(--text);
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            max-height: 300px;
+        }
+        button.secondary:hover:not(:disabled) { background: var(--border); }
+        button.danger {
+            background: var(--danger);
+        }
+        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+        #log {
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            max-height: 280px;
             overflow-y: auto;
             white-space: pre-wrap;
-            color: #0f0;
+            color: var(--muted);
+            line-height: 1.6;
         }
+        #log .log-error { color: var(--danger); font-weight: 500; }
+        #log .log-success { color: var(--success); font-weight: 500; }
+        #log .log-info { color: var(--primary); }
+        #log .log-warn { color: var(--warning); }
         .file-list { list-style: none; }
         .file-list li {
             display: flex;
@@ -116,15 +186,18 @@
             align-items: center;
             padding: 0.5rem 0;
             border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
         }
         .file-list li:last-child { border-bottom: none; }
-        .file-list .fname { font-family: monospace; }
-        .file-list .fsize { color: var(--muted); font-size: 0.85rem; }
+        .fname { font-family: monospace; font-size: 0.85rem; }
+        .fsize { color: var(--muted); font-size: 0.8rem; }
         .file-list a {
             color: var(--primary);
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 500;
         }
+        .file-list a:hover { text-decoration: underline; }
         .hidden { display: none; }
         .tabs {
             display: flex;
@@ -134,27 +207,80 @@
         .tab {
             padding: 0.5rem 1.2rem;
             cursor: pointer;
-            background: var(--bg);
+            background: var(--surface);
             border: 1px solid var(--border);
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.15s;
         }
-        .tab:first-child { border-radius: 4px 0 0 4px; }
-        .tab:last-child { border-radius: 0 4px 4px 0; }
-        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .tab:first-child { border-radius: 6px 0 0 6px; }
+        .tab:last-child { border-radius: 0 6px 6px 0; }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
         .preview-box {
-            background: var(--bg);
+            background: #fafbfc;
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1rem;
-            max-height: 200px;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            max-height: 180px;
             overflow-y: auto;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            font-size: 0.85rem;
+            line-height: 1.6;
             color: var(--muted);
+        }
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: white;
+            box-shadow: var(--shadow-md);
+            z-index: 200;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
+            border-radius: 2px;
         }
         @media (max-width: 700px) {
             .form-grid { grid-template-columns: 1fr; }
+            header { padding: 0.8rem 1rem; }
+            .container { padding: 0 0.5rem; }
         }
     </style>
 </head>
@@ -170,7 +296,7 @@
     <div class="container">
         <!-- Upload -->
         <div class="card">
-            <h2>1. Upload Source Document</h2>
+            <h2><span class="step">1</span> Upload Source Document</h2>
             <div class="form-grid">
                 <div class="form-group full">
                     <label>Document File (.txt, .md, .pdf, .rtf, .doc, .docx, .epub)</label>
@@ -182,11 +308,11 @@
                 <button class="secondary" id="extractBtn" onclick="extractText()" disabled>Extract Text</button>
                 <button class="secondary" id="metadataBtn" onclick="getMetadata()" disabled>Get Metadata</button>
             </div>
-            <div id="uploadStatus" style="margin-top:0.5rem; font-size:0.85rem; color:var(--muted);"></div>
-            <div id="textPreview" class="preview-box hidden" style="margin-top:1rem;"></div>
+            <div id="uploadStatus" style="margin-top:0.5rem; font-size:0.8rem; color:var(--muted);"></div>
+            <div id="textPreview" class="preview-box hidden" style="margin-top:0.75rem;"></div>
         </div>
 
-        <!-- Tabs: Produce / Characters -->
+        <!-- Tabs -->
         <div class="tabs">
             <div class="tab active" onclick="switchTab('produce')">Produce Drama</div>
             <div class="tab" onclick="switchTab('characters')">Identify Characters</div>
@@ -194,7 +320,7 @@
 
         <!-- Produce -->
         <div class="card" id="producePanel">
-            <h2>2. Configure Production</h2>
+            <h2><span class="step">2</span> Configure Production</h2>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Genre</label>
@@ -251,11 +377,12 @@
             <div class="actions">
                 <button id="produceBtn" onclick="produce()" disabled>Produce Radio Drama</button>
             </div>
+            <div id="produceProgress" class="progress-bar hidden"><div class="fill" style="width:0%"></div></div>
         </div>
 
         <!-- Characters -->
         <div class="card hidden" id="charactersPanel">
-            <h2>Identify Characters (Audiobook Mode)</h2>
+            <h2><span class="step">2</span> Identify Characters (Audiobook Mode)</h2>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Protagonist Name (optional)</label>
@@ -266,7 +393,7 @@
                 <button id="identifyBtn" onclick="identifyCharacters()" disabled>Identify Characters</button>
             </div>
             <div id="charResults" class="hidden" style="margin-top:1rem;">
-                <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Discovered Characters</h3>
+                <h3 style="font-size:0.9rem; margin-bottom:0.5rem; font-weight:600;">Discovered Characters</h3>
                 <ul class="file-list" id="charList"></ul>
             </div>
         </div>
@@ -274,14 +401,14 @@
         <!-- Log -->
         <div class="card">
             <h2>Log</h2>
-            <div id="log">Ready.\n</div>
+            <div id="log">Ready.</div>
         </div>
 
         <!-- Output Files -->
         <div class="card hidden" id="outputPanel">
             <h2>Output Files</h2>
             <ul class="file-list" id="fileList"></ul>
-            <div class="actions" style="margin-top:1rem;">
+            <div class="actions" style="margin-top:0.75rem;">
                 <select id="convertFormat">
                     <option value="mp3">MP3</option>
                     <option value="wav">WAV</option>
@@ -294,35 +421,55 @@
         </div>
     </div>
 
+    <div id="toastContainer"></div>
+
     <script>
         let currentFileId = null;
         let currentJobId = null;
 
-        function log(msg) {
+        // --- Logging ---
+        function log(msg, level) {
             const el = document.getElementById('log');
-            el.textContent += msg + '\n';
+            const span = document.createElement('span');
+            span.textContent = msg + '\n';
+            if (level) span.className = 'log-' + level;
+            el.appendChild(span);
             el.scrollTop = el.scrollHeight;
         }
 
-        // Health check
-        fetch('/api/health').then(r => r.json()).then(data => {
-            const dot = document.getElementById('healthDot');
-            const txt = document.getElementById('healthText');
+        // --- Toast notifications ---
+        function toast(msg, type) {
+            type = type || 'success';
+            const container = document.getElementById('toastContainer');
+            const div = document.createElement('div');
+            div.className = 'toast ' + type;
+            div.textContent = msg;
+            container.appendChild(div);
+            setTimeout(function() { div.remove(); }, 4000);
+        }
+
+        // --- Health check ---
+        fetch('/api/health').then(function(r) { return r.json(); }).then(function(data) {
+            var dot = document.getElementById('healthDot');
+            var txt = document.getElementById('healthText');
             if (data.status === 'ok') {
                 dot.classList.add('ok');
-                let extras = [];
+                var extras = [];
                 if (data.calibre_installed) extras.push('Calibre');
                 if (data.ffmpeg_installed) extras.push('FFmpeg');
                 txt.textContent = 'System OK' + (extras.length ? ' | ' + extras.join(', ') : '');
             } else {
+                dot.classList.add('error');
                 txt.textContent = 'System issue';
             }
-        }).catch(() => {
+        }).catch(function() {
+            document.getElementById('healthDot').classList.add('error');
             document.getElementById('healthText').textContent = 'Offline';
         });
 
+        // --- Tab switching ---
         function switchTab(name) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
             if (name === 'produce') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('producePanel').classList.remove('hidden');
@@ -334,75 +481,106 @@
             }
         }
 
-        async function uploadFile() {
-            const input = document.getElementById('fileInput');
-            if (!input.files.length) { log('No file selected.'); return; }
-
-            const form = new FormData();
-            form.append('file', input.files[0]);
-            log('Uploading ' + input.files[0].name + '...');
-
+        // --- Helper: safe API call ---
+        async function apiCall(url, options) {
             try {
-                const resp = await fetch('/api/upload', { method: 'POST', body: form });
-                const data = await resp.json();
-                if (resp.ok) {
-                    currentFileId = data.file_id;
-                    log('Uploaded: ' + data.filename + ' (id: ' + data.file_id + ')');
-                    document.getElementById('uploadStatus').textContent = 'File ready: ' + data.filename;
-                    document.getElementById('produceBtn').disabled = false;
-                    document.getElementById('extractBtn').disabled = false;
-                    document.getElementById('metadataBtn').disabled = false;
-                    document.getElementById('identifyBtn').disabled = false;
-                } else {
-                    log('Upload failed: ' + (data.detail || 'Unknown error'));
+                var resp = await fetch(url, options);
+                var data = await resp.json();
+                if (!resp.ok) {
+                    var detail = data.detail || data.error || 'Unknown error';
+                    log('Error: ' + detail, 'error');
+                    toast(detail, 'error');
+                    return { ok: false, data: data };
                 }
+                return { ok: true, data: data };
             } catch (e) {
-                log('Upload error: ' + e.message);
+                log('Network error: ' + e.message, 'error');
+                toast('Network error: ' + e.message, 'error');
+                return { ok: false, data: null };
             }
         }
 
+        // --- Upload ---
+        async function uploadFile() {
+            var input = document.getElementById('fileInput');
+            if (!input.files.length) {
+                toast('Please select a file first.', 'warning');
+                return;
+            }
+            var file = input.files[0];
+            var maxSize = 100 * 1024 * 1024; // 100 MB
+            if (file.size > maxSize) {
+                toast('File too large (max 100 MB).', 'error');
+                return;
+            }
+
+            var btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Uploading...';
+            log('Uploading ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)...', 'info');
+
+            var form = new FormData();
+            form.append('file', file);
+            var result = await apiCall('/api/upload', { method: 'POST', body: form });
+
+            btn.disabled = false;
+            btn.textContent = 'Upload';
+
+            if (result.ok) {
+                currentFileId = result.data.file_id;
+                log('Uploaded: ' + result.data.filename + ' (id: ' + result.data.file_id + ')', 'success');
+                document.getElementById('uploadStatus').textContent = 'File ready: ' + result.data.filename;
+                toast('File uploaded successfully!', 'success');
+                document.getElementById('produceBtn').disabled = false;
+                document.getElementById('extractBtn').disabled = false;
+                document.getElementById('metadataBtn').disabled = false;
+                document.getElementById('identifyBtn').disabled = false;
+            }
+        }
+
+        // --- Extract Text ---
         async function extractText() {
             if (!currentFileId) return;
-            log('Extracting text...');
-            const form = new FormData();
+            log('Extracting text...', 'info');
+            var form = new FormData();
             form.append('file_id', currentFileId);
             form.append('method', 'native');
-            try {
-                const resp = await fetch('/api/extract-text', { method: 'POST', body: form });
-                const data = await resp.json();
-                if (resp.ok) {
-                    log('Extracted ' + data.char_count + ' characters.');
-                    const preview = document.getElementById('textPreview');
-                    preview.classList.remove('hidden');
-                    preview.textContent = data.preview;
-                } else {
-                    log('Extraction failed: ' + (data.detail || 'Error'));
-                }
-            } catch (e) {
-                log('Extraction error: ' + e.message);
+            var result = await apiCall('/api/extract-text', { method: 'POST', body: form });
+            if (result.ok) {
+                log('Extracted ' + result.data.char_count + ' characters.', 'success');
+                var preview = document.getElementById('textPreview');
+                preview.classList.remove('hidden');
+                preview.textContent = result.data.preview;
             }
         }
 
+        // --- Metadata ---
         async function getMetadata() {
             if (!currentFileId) return;
-            log('Fetching metadata...');
-            try {
-                const resp = await fetch('/api/metadata/' + currentFileId);
-                const data = await resp.json();
-                log('Metadata: ' + JSON.stringify(data, null, 2));
-            } catch (e) {
-                log('Metadata error: ' + e.message);
+            log('Fetching metadata...', 'info');
+            var result = await apiCall('/api/metadata/' + currentFileId);
+            if (result.ok) {
+                log('Metadata: ' + JSON.stringify(result.data, null, 2), 'info');
+                toast('Metadata loaded.', 'success');
             }
         }
 
+        // --- Produce ---
         async function produce() {
-            if (!currentFileId) return;
-            const btn = document.getElementById('produceBtn');
+            if (!currentFileId) {
+                toast('Upload a file first.', 'warning');
+                return;
+            }
+            var btn = document.getElementById('produceBtn');
+            var progressBar = document.getElementById('produceProgress');
+            var fill = progressBar.querySelector('.fill');
             btn.disabled = true;
-            btn.textContent = 'Producing...';
-            log('Starting production...');
+            btn.innerHTML = '<span class="spinner"></span>Producing...';
+            progressBar.classList.remove('hidden');
+            fill.style.width = '10%';
+            log('Starting production...', 'info');
 
-            const form = new FormData();
+            var form = new FormData();
             form.append('file_id', currentFileId);
             form.append('genre', document.getElementById('genre').value);
             form.append('scenes', document.getElementById('scenes').value);
@@ -413,95 +591,97 @@
             form.append('tts_preset', document.getElementById('ttsPreset').value);
             form.append('tone', document.getElementById('tone').value);
 
-            try {
-                const resp = await fetch('/api/produce', { method: 'POST', body: form });
-                const data = await resp.json();
-                if (resp.ok) {
-                    currentJobId = data.job_id;
-                    log('Production complete! Job ID: ' + data.job_id);
-                    loadOutputFiles();
-                } else {
-                    log('Production failed: ' + (data.detail || 'Error'));
-                }
-            } catch (e) {
-                log('Production error: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Produce Radio Drama';
+            fill.style.width = '40%';
+            var result = await apiCall('/api/produce', { method: 'POST', body: form });
+
+            if (result.ok) {
+                currentJobId = result.data.job_id;
+                fill.style.width = '100%';
+                log('Production complete! Job ID: ' + result.data.job_id, 'success');
+                toast('Radio drama produced!', 'success');
+                loadOutputFiles();
+            } else {
+                fill.style.width = '0%';
             }
+
+            btn.disabled = false;
+            btn.textContent = 'Produce Radio Drama';
+            setTimeout(function() { progressBar.classList.add('hidden'); }, 1500);
         }
 
+        // --- Output Files ---
         async function loadOutputFiles() {
             if (!currentJobId) return;
-            try {
-                const resp = await fetch('/api/jobs/' + currentJobId + '/files');
-                const data = await resp.json();
-                const panel = document.getElementById('outputPanel');
-                const list = document.getElementById('fileList');
-                panel.classList.remove('hidden');
-                list.innerHTML = '';
-                for (const f of data.files) {
-                    const li = document.createElement('li');
-                    const sizeKb = (f.size / 1024).toFixed(1);
-                    li.innerHTML = '<span class="fname">' + f.name + '</span>' +
-                        '<span class="fsize">' + sizeKb + ' KB</span>' +
-                        '<a href="/api/jobs/' + currentJobId + '/download/' + f.name +
-                        '" target="_blank">Download</a>';
-                    list.appendChild(li);
-                }
-            } catch (e) {
-                log('Error loading files: ' + e.message);
-            }
+            var result = await apiCall('/api/jobs/' + currentJobId + '/files');
+            if (!result.ok) return;
+            var panel = document.getElementById('outputPanel');
+            var list = document.getElementById('fileList');
+            panel.classList.remove('hidden');
+            list.innerHTML = '';
+            result.data.files.forEach(function(f) {
+                var li = document.createElement('li');
+                var sizeKb = (f.size / 1024).toFixed(1);
+                li.innerHTML =
+                    '<span class="fname">' + f.name + '</span>' +
+                    '<span class="fsize">' + sizeKb + ' KB</span>' +
+                    '<a href="/api/jobs/' + currentJobId + '/download/' + encodeURIComponent(f.name) +
+                    '" target="_blank">Download</a>';
+                list.appendChild(li);
+            });
         }
 
+        // --- Convert Audio ---
         async function convertAudio() {
-            if (!currentJobId) return;
-            const fmt = document.getElementById('convertFormat').value;
-            const form = new FormData();
+            if (!currentJobId) {
+                toast('No output to convert yet.', 'warning');
+                return;
+            }
+            var fmt = document.getElementById('convertFormat').value;
+            var form = new FormData();
             form.append('job_id', currentJobId);
             form.append('filename', 'radio_drama.wav');
             form.append('output_format', fmt);
-            log('Converting to ' + fmt + '...');
-            try {
-                const resp = await fetch('/api/convert', { method: 'POST', body: form });
-                const data = await resp.json();
-                if (resp.ok) {
-                    log('Converted: ' + data.converted);
-                    loadOutputFiles();
-                } else {
-                    log('Conversion failed: ' + (data.detail || 'Error'));
-                }
-            } catch (e) {
-                log('Conversion error: ' + e.message);
+            log('Converting to ' + fmt + '...', 'info');
+            var result = await apiCall('/api/convert', { method: 'POST', body: form });
+            if (result.ok) {
+                log('Converted: ' + result.data.converted, 'success');
+                toast('Audio converted to ' + fmt.toUpperCase(), 'success');
+                loadOutputFiles();
             }
         }
 
+        // --- Identify Characters ---
         async function identifyCharacters() {
             if (!currentFileId) return;
-            log('Identifying characters...');
-            const form = new FormData();
+            var btn = document.getElementById('identifyBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Identifying...';
+            log('Identifying characters...', 'info');
+
+            var form = new FormData();
             form.append('file_id', currentFileId);
             form.append('protagonist', document.getElementById('protagonist').value);
-            try {
-                const resp = await fetch('/api/identify-characters', { method: 'POST', body: form });
-                const data = await resp.json();
-                if (resp.ok) {
-                    for (const msg of (data.messages || [])) log(msg);
-                    const panel = document.getElementById('charResults');
-                    const list = document.getElementById('charList');
-                    panel.classList.remove('hidden');
-                    list.innerHTML = '';
-                    for (const c of (data.characters || [])) {
-                        const li = document.createElement('li');
-                        li.innerHTML = '<span class="fname">' + c.name + '</span>' +
-                            '<span class="fsize">' + (c.gender || '?') + ', age ~' + (c.age || '?') + '</span>';
-                        list.appendChild(li);
-                    }
-                } else {
-                    log('Character ID failed: ' + (data.detail || 'Error'));
+            var result = await apiCall('/api/identify-characters', { method: 'POST', body: form });
+
+            btn.disabled = false;
+            btn.textContent = 'Identify Characters';
+
+            if (result.ok) {
+                (result.data.messages || []).forEach(function(msg) { log(msg); });
+                var panel = document.getElementById('charResults');
+                var list = document.getElementById('charList');
+                panel.classList.remove('hidden');
+                list.innerHTML = '';
+                (result.data.characters || []).forEach(function(c) {
+                    var li = document.createElement('li');
+                    li.innerHTML =
+                        '<span class="fname">' + (c.name || 'Unknown') + '</span>' +
+                        '<span class="fsize">' + (c.gender || '?') + ', age ~' + (c.age || '?') + '</span>';
+                    list.appendChild(li);
+                });
+                if (result.data.characters && result.data.characters.length) {
+                    toast(result.data.characters.length + ' characters found!', 'success');
                 }
-            } catch (e) {
-                log('Character ID error: ' + e.message);
             }
         }
     </script>

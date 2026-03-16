@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Drama Creator</title>
+    <style>
+        :root {
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #e0e7ff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.3px;
+        }
+        .health {
+            font-size: 0.8rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+        .dot.ok { background: var(--success); }
+        .dot.error { background: var(--danger); }
+        .container {
+            max-width: 960px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+        }
+        .card h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .step {
+            background: var(--primary);
+            color: white;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input, select, textarea {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.55rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        input[type="file"] {
+            padding: 0.4rem;
+            cursor: pointer;
+        }
+        input[type="file"]::file-selector-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.55rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            font-family: inherit;
+        }
+        button:hover:not(:disabled) { background: var(--primary-hover); }
+        button:active:not(:disabled) { transform: scale(0.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        button.secondary:hover:not(:disabled) { background: var(--border); }
+        button.danger {
+            background: var(--danger);
+        }
+        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+        #log {
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            max-height: 280px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        #log .log-error { color: var(--danger); font-weight: 500; }
+        #log .log-success { color: var(--success); font-weight: 500; }
+        #log .log-info { color: var(--primary); }
+        #log .log-warn { color: var(--warning); }
+        .file-list { list-style: none; }
+        .file-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .file-list li:last-child { border-bottom: none; }
+        .fname { font-family: monospace; font-size: 0.85rem; }
+        .fsize { color: var(--muted); font-size: 0.8rem; }
+        .file-list a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .file-list a:hover { text-decoration: underline; }
+        .hidden { display: none; }
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.5rem 1.2rem;
+            cursor: pointer;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .tab:first-child { border-radius: 6px 0 0 6px; }
+        .tab:last-child { border-radius: 0 6px 6px 0; }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .preview-box {
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            max-height: 180px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: white;
+            box-shadow: var(--shadow-md);
+            z-index: 200;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
+            border-radius: 2px;
+        }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            header { padding: 0.8rem 1rem; }
+            .container { padding: 0 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Radio Drama Creator</h1>
+        <div style="display:flex;align-items:center;gap:1.5rem;">
+            <nav style="display:flex;gap:1rem;font-size:0.85rem;">
+                <a href="/" style="color:var(--primary);text-decoration:none;font-weight:600;">Producer</a>
+                <a href="/models" style="color:var(--muted);text-decoration:none;font-weight:500;">Models</a>
+                <a href="/catalog" style="color:var(--muted);text-decoration:none;font-weight:500;">Catalog</a>
+            </nav>
+            <div class="health">
+                <span class="dot" id="healthDot"></span>
+                <span id="healthText">Checking...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Upload -->
+        <div class="card">
+            <h2><span class="step">1</span> Upload Source Document</h2>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Document File (.txt, .md, .pdf, .rtf, .doc, .docx, .epub)</label>
+                    <input type="file" id="fileInput" accept=".txt,.md,.pdf,.rtf,.doc,.docx,.epub">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="uploadBtn" onclick="uploadFile()">Upload</button>
+                <button class="secondary" id="extractBtn" onclick="extractText()" disabled>Extract Text</button>
+                <button class="secondary" id="metadataBtn" onclick="getMetadata()" disabled>Get Metadata</button>
+            </div>
+            <div id="uploadStatus" style="margin-top:0.5rem; font-size:0.8rem; color:var(--muted);"></div>
+            <div id="textPreview" class="preview-box hidden" style="margin-top:0.75rem;"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('produce')">Produce Drama</div>
+            <div class="tab" onclick="switchTab('characters')">Identify Characters</div>
+        </div>
+
+        <!-- Produce -->
+        <div class="card" id="producePanel">
+            <h2><span class="step">2</span> Configure Production</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Genre</label>
+                    <select id="genre">
+                        {% for g in genres %}
+                        <option value="{{ g }}">{{ g|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Scenes</label>
+                    <input type="number" id="scenes" value="3" min="1" max="20">
+                </div>
+                <div class="form-group">
+                    <label>Lines Per Scene</label>
+                    <input type="number" id="linesPerScene" value="8" min="2" max="30">
+                </div>
+                <div class="form-group">
+                    <label>Script Backend</label>
+                    <select id="scriptBackend">
+                        <option value="heuristic">Heuristic</option>
+                        <option value="mlx">MLX (Local LLM)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Script Model Preset</label>
+                    <select id="scriptPreset">
+                        {% for p in script_presets %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Renderer</label>
+                    <select id="renderer">
+                        {% for r in renderers %}
+                        <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>TTS Preset</label>
+                    <select id="ttsPreset">
+                        {% for p in tts_presets %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tone</label>
+                    <input type="text" id="tone" value="suspenseful, theatrical, intimate">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="produceBtn" onclick="produce()" disabled>Produce Radio Drama</button>
+            </div>
+            <div id="produceProgress" class="progress-bar hidden"><div class="fill" style="width:0%"></div></div>
+        </div>
+
+        <!-- Characters -->
+        <div class="card hidden" id="charactersPanel">
+            <h2><span class="step">2</span> Identify Characters (Audiobook Mode)</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Protagonist Name (optional)</label>
+                    <input type="text" id="protagonist" placeholder="e.g. Elizabeth Bennet">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="identifyBtn" onclick="identifyCharacters()" disabled>Identify Characters</button>
+            </div>
+            <div id="charResults" class="hidden" style="margin-top:1rem;">
+                <h3 style="font-size:0.9rem; margin-bottom:0.5rem; font-weight:600;">Discovered Characters</h3>
+                <ul class="file-list" id="charList"></ul>
+            </div>
+        </div>
+
+        <!-- Log -->
+        <div class="card">
+            <h2>Log</h2>
+            <div id="log">Ready.</div>
+        </div>
+
+        <!-- Output Files -->
+        <div class="card hidden" id="outputPanel">
+            <h2>Output Files</h2>
+            <ul class="file-list" id="fileList"></ul>
+            <div class="actions" style="margin-top:0.75rem;">
+                <select id="convertFormat">
+                    <option value="mp3">MP3</option>
+                    <option value="wav">WAV</option>
+                    <option value="opus">OPUS</option>
+                    <option value="flac">FLAC</option>
+                    <option value="aac">AAC</option>
+                </select>
+                <button class="secondary" onclick="convertAudio()">Convert Audio</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        let currentFileId = null;
+        let currentJobId = null;
+
+        // --- Logging ---
+        function log(msg, level) {
+            const el = document.getElementById('log');
+            const span = document.createElement('span');
+            span.textContent = msg + '\n';
+            if (level) span.className = 'log-' + level;
+            el.appendChild(span);
+            el.scrollTop = el.scrollHeight;
+        }
+
+        // --- Toast notifications ---
+        function toast(msg, type) {
+            type = type || 'success';
+            const container = document.getElementById('toastContainer');
+            const div = document.createElement('div');
+            div.className = 'toast ' + type;
+            div.textContent = msg;
+            container.appendChild(div);
+            setTimeout(function() { div.remove(); }, 4000);
+        }
+
+        // --- Health check ---
+        fetch('/api/health').then(function(r) { return r.json(); }).then(function(data) {
+            var dot = document.getElementById('healthDot');
+            var txt = document.getElementById('healthText');
+            if (data.status === 'ok') {
+                dot.classList.add('ok');
+                var extras = [];
+                if (data.calibre_installed) extras.push('Calibre');
+                if (data.ffmpeg_installed) extras.push('FFmpeg');
+                txt.textContent = 'System OK' + (extras.length ? ' | ' + extras.join(', ') : '');
+            } else {
+                dot.classList.add('error');
+                txt.textContent = 'System issue';
+            }
+        }).catch(function() {
+            document.getElementById('healthDot').classList.add('error');
+            document.getElementById('healthText').textContent = 'Offline';
+        });
+
+        // --- Tab switching ---
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            if (name === 'produce') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('producePanel').classList.remove('hidden');
+                document.getElementById('charactersPanel').classList.add('hidden');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('producePanel').classList.add('hidden');
+                document.getElementById('charactersPanel').classList.remove('hidden');
+            }
+        }
+
+        // --- Helper: safe API call ---
+        async function apiCall(url, options) {
+            try {
+                var resp = await fetch(url, options);
+                var data = await resp.json();
+                if (!resp.ok) {
+                    var detail = data.detail || data.error || 'Unknown error';
+                    log('Error: ' + detail, 'error');
+                    toast(detail, 'error');
+                    return { ok: false, data: data };
+                }
+                return { ok: true, data: data };
+            } catch (e) {
+                log('Network error: ' + e.message, 'error');
+                toast('Network error: ' + e.message, 'error');
+                return { ok: false, data: null };
+            }
+        }
+
+        // --- Upload ---
+        async function uploadFile() {
+            var input = document.getElementById('fileInput');
+            if (!input.files.length) {
+                toast('Please select a file first.', 'warning');
+                return;
+            }
+            var file = input.files[0];
+            var maxSize = 100 * 1024 * 1024; // 100 MB
+            if (file.size > maxSize) {
+                toast('File too large (max 100 MB).', 'error');
+                return;
+            }
+
+            var btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Uploading...';
+            log('Uploading ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)...', 'info');
+
+            var form = new FormData();
+            form.append('file', file);
+            var result = await apiCall('/api/upload', { method: 'POST', body: form });
+
+            btn.disabled = false;
+            btn.textContent = 'Upload';
+
+            if (result.ok) {
+                currentFileId = result.data.file_id;
+                log('Uploaded: ' + result.data.filename + ' (id: ' + result.data.file_id + ')', 'success');
+                document.getElementById('uploadStatus').textContent = 'File ready: ' + result.data.filename;
+                toast('File uploaded successfully!', 'success');
+                document.getElementById('produceBtn').disabled = false;
+                document.getElementById('extractBtn').disabled = false;
+                document.getElementById('metadataBtn').disabled = false;
+                document.getElementById('identifyBtn').disabled = false;
+            }
+        }
+
+        // --- Extract Text ---
+        async function extractText() {
+            if (!currentFileId) return;
+            log('Extracting text...', 'info');
+            var form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('method', 'native');
+            var result = await apiCall('/api/extract-text', { method: 'POST', body: form });
+            if (result.ok) {
+                log('Extracted ' + result.data.char_count + ' characters.', 'success');
+                var preview = document.getElementById('textPreview');
+                preview.classList.remove('hidden');
+                preview.textContent = result.data.preview;
+            }
+        }
+
+        // --- Metadata ---
+        async function getMetadata() {
+            if (!currentFileId) return;
+            log('Fetching metadata...', 'info');
+            var result = await apiCall('/api/metadata/' + currentFileId);
+            if (result.ok) {
+                log('Metadata: ' + JSON.stringify(result.data, null, 2), 'info');
+                toast('Metadata loaded.', 'success');
+            }
+        }
+
+        // --- Produce ---
+        async function produce() {
+            if (!currentFileId) {
+                toast('Upload a file first.', 'warning');
+                return;
+            }
+            var btn = document.getElementById('produceBtn');
+            var progressBar = document.getElementById('produceProgress');
+            var fill = progressBar.querySelector('.fill');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Producing...';
+            progressBar.classList.remove('hidden');
+            fill.style.width = '10%';
+            log('Starting production...', 'info');
+
+            var form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('genre', document.getElementById('genre').value);
+            form.append('scenes', document.getElementById('scenes').value);
+            form.append('lines_per_scene', document.getElementById('linesPerScene').value);
+            form.append('script_backend', document.getElementById('scriptBackend').value);
+            form.append('script_preset', document.getElementById('scriptPreset').value);
+            form.append('renderer', document.getElementById('renderer').value);
+            form.append('tts_preset', document.getElementById('ttsPreset').value);
+            form.append('tone', document.getElementById('tone').value);
+
+            fill.style.width = '40%';
+            var result = await apiCall('/api/produce', { method: 'POST', body: form });
+
+            if (result.ok) {
+                currentJobId = result.data.job_id;
+                fill.style.width = '100%';
+                log('Production complete! Job ID: ' + result.data.job_id, 'success');
+                toast('Radio drama produced!', 'success');
+                loadOutputFiles();
+            } else {
+                fill.style.width = '0%';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Produce Radio Drama';
+            setTimeout(function() { progressBar.classList.add('hidden'); }, 1500);
+        }
+
+        // --- Output Files ---
+        async function loadOutputFiles() {
+            if (!currentJobId) return;
+            var result = await apiCall('/api/jobs/' + currentJobId + '/files');
+            if (!result.ok) return;
+            var panel = document.getElementById('outputPanel');
+            var list = document.getElementById('fileList');
+            panel.classList.remove('hidden');
+            list.innerHTML = '';
+            result.data.files.forEach(function(f) {
+                var li = document.createElement('li');
+                var sizeKb = (f.size / 1024).toFixed(1);
+                li.innerHTML =
+                    '<span class="fname">' + f.name + '</span>' +
+                    '<span class="fsize">' + sizeKb + ' KB</span>' +
+                    '<a href="/api/jobs/' + currentJobId + '/download/' + encodeURIComponent(f.name) +
+                    '" target="_blank">Download</a>';
+                list.appendChild(li);
+            });
+        }
+
+        // --- Convert Audio ---
+        async function convertAudio() {
+            if (!currentJobId) {
+                toast('No output to convert yet.', 'warning');
+                return;
+            }
+            var fmt = document.getElementById('convertFormat').value;
+            var form = new FormData();
+            form.append('job_id', currentJobId);
+            form.append('filename', 'radio_drama.wav');
+            form.append('output_format', fmt);
+            log('Converting to ' + fmt + '...', 'info');
+            var result = await apiCall('/api/convert', { method: 'POST', body: form });
+            if (result.ok) {
+                log('Converted: ' + result.data.converted, 'success');
+                toast('Audio converted to ' + fmt.toUpperCase(), 'success');
+                loadOutputFiles();
+            }
+        }
+
+        // --- Identify Characters ---
+        async function identifyCharacters() {
+            if (!currentFileId) return;
+            var btn = document.getElementById('identifyBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Identifying...';
+            log('Identifying characters...', 'info');
+
+            var form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('protagonist', document.getElementById('protagonist').value);
+            var result = await apiCall('/api/identify-characters', { method: 'POST', body: form });
+
+            btn.disabled = false;
+            btn.textContent = 'Identify Characters';
+
+            if (result.ok) {
+                (result.data.messages || []).forEach(function(msg) { log(msg); });
+                var panel = document.getElementById('charResults');
+                var list = document.getElementById('charList');
+                panel.classList.remove('hidden');
+                list.innerHTML = '';
+                (result.data.characters || []).forEach(function(c) {
+                    var li = document.createElement('li');
+                    li.innerHTML =
+                        '<span class="fname">' + (c.name || 'Unknown') + '</span>' +
+                        '<span class="fsize">' + (c.gender || '?') + ', age ~' + (c.age || '?') + '</span>';
+                    list.appendChild(li);
+                });
+                if (result.data.characters && result.data.characters.length) {
+                    toast(result.data.characters.length + ' characters found!', 'success');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

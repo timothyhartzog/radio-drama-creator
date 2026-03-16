@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Manager - Radio Drama Creator</title>
+    <style>
+        :root {
+            --bg: #f1f5f9; --surface: #ffffff; --primary: #2563eb; --primary-hover: #1d4ed8;
+            --text: #1e293b; --muted: #64748b; --success: #16a34a; --danger: #dc2626;
+            --warning: #d97706; --border: #e2e8f0; --accent: #e0e7ff;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+        header h1 { font-size: 1.3rem; color: var(--primary); }
+        nav { display: flex; gap: 1.2rem; font-size: 0.85rem; }
+        nav a { color: var(--muted); text-decoration: none; font-weight: 500; }
+        nav a:hover, nav a.active { color: var(--primary); }
+        .container { max-width: 1050px; margin: 1.5rem auto; padding: 0 1rem; }
+
+        .summary-bar {
+            display: flex; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.8rem 1.2rem; box-shadow: var(--shadow); flex: 1; min-width: 140px;
+        }
+        .stat-card .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+        .stat-card .value { font-size: 1.3rem; font-weight: 700; color: var(--text); }
+        .stat-card .value.success { color: var(--success); }
+
+        .section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.2rem; box-shadow: var(--shadow); overflow: hidden; }
+        .section-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .section-header h2 { font-size: 0.95rem; font-weight: 600; }
+        .section-header .badge { background: var(--accent); color: var(--primary); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+
+        .model-grid { padding: 0; }
+        .model-row {
+            display: grid; grid-template-columns: 1fr auto auto auto;
+            align-items: center; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--border);
+            gap: 1rem;
+        }
+        .model-row:last-child { border-bottom: none; }
+        .model-row:hover { background: #f8fafc; }
+        .model-name { font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; font-weight: 600; }
+        .model-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+        .model-size { font-size: 0.82rem; color: var(--muted); text-align: right; white-space: nowrap; }
+        .model-status { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 500; white-space: nowrap; }
+        .model-status.downloaded { color: var(--success); }
+        .model-status.not-downloaded { color: var(--muted); }
+        .dot-sm { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .dot-sm.green { background: var(--success); }
+        .dot-sm.gray { background: #cbd5e1; }
+        .model-actions { display: flex; gap: 0.4rem; }
+
+        button { font-family: inherit; cursor: pointer; border: none; border-radius: 5px; font-size: 0.8rem; font-weight: 500; padding: 0.35rem 0.8rem; transition: all 0.15s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .btn-danger { background: white; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover:not(:disabled) { background: #fef2f2; }
+        .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover:not(:disabled) { background: var(--border); }
+        .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+
+        .recommend-tag {
+            display: inline-block; font-size: 0.6rem; font-weight: 700; padding: 1px 6px;
+            border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; margin-left: 6px;
+        }
+        .recommend-tag.best { background: #dcfce7; color: #166534; }
+        .recommend-tag.fast { background: #e0e7ff; color: #3730a3; }
+        .recommend-tag.quality { background: #fef3c7; color: #92400e; }
+        .recommend-tag.heavy { background: #fce7f3; color: #9d174d; }
+        .recommend-tag.tiny { background: #f3e8ff; color: #6b21a8; }
+
+        .custom-download { display: flex; gap: 0.5rem; padding: 0.8rem 1.2rem; }
+        .custom-download input { flex: 1; padding: 0.4rem 0.7rem; border: 1px solid var(--border); border-radius: 5px; font-size: 0.85rem; background: var(--bg); }
+        .custom-download input:focus { outline: none; border-color: var(--primary); }
+
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 200; animation: slideIn 0.3s ease; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 4px; }
+        .spinner.dark { border-color: rgba(0,0,0,0.1); border-top-color: var(--primary); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+        .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 300; }
+        .confirm-box { background: white; border-radius: 10px; padding: 1.5rem; max-width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+        .confirm-box h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+        .confirm-box p { font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem; }
+        .confirm-box .actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .hidden { display: none; }
+
+        @media (max-width: 700px) {
+            .model-row { grid-template-columns: 1fr; gap: 0.3rem; }
+            .summary-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Model Manager</h1>
+        <nav>
+            <a href="/">Producer</a>
+            <a href="/models" class="active">Models</a>
+            <a href="/catalog">Catalog</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Summary -->
+        <div class="summary-bar" id="summaryBar">
+            <div class="stat-card"><div class="label">Models Downloaded</div><div class="value" id="statCount">--</div></div>
+            <div class="stat-card"><div class="label">Cache Size</div><div class="value" id="statSize">--</div></div>
+            <div class="stat-card"><div class="label">Disk Free</div><div class="value success" id="statFree">--</div></div>
+            <div class="stat-card"><div class="label">Cache Location</div><div class="value" id="statPath" style="font-size:0.7rem;word-break:break-all;">--</div></div>
+        </div>
+
+        <!-- Script Models (LLMs) -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Script Models (Document to Drama)</h2>
+                <span class="badge">LLM</span>
+            </div>
+            <div class="model-grid" id="scriptModels">
+                <div class="empty-state"><span class="spinner dark"></span> Loading...</div>
+            </div>
+        </div>
+
+        <!-- TTS Models -->
+        <div class="section">
+            <div class="section-header">
+                <h2>TTS Models (Script to Audio)</h2>
+                <span class="badge">TTS</span>
+            </div>
+            <div class="model-grid" id="ttsModels">
+                <div class="empty-state"><span class="spinner dark"></span> Loading...</div>
+            </div>
+        </div>
+
+        <!-- Vision Models -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Vision Models (Scanned Documents)</h2>
+                <span class="badge">Vision</span>
+            </div>
+            <div class="model-grid" id="visionModels">
+                <div class="empty-state"><span class="spinner dark"></span> Loading...</div>
+            </div>
+        </div>
+
+        <!-- ASR Models -->
+        <div class="section">
+            <div class="section-header">
+                <h2>ASR / Alignment Models (QA & Subtitles)</h2>
+                <span class="badge">ASR</span>
+            </div>
+            <div class="model-grid" id="asrModels">
+                <div class="empty-state"><span class="spinner dark"></span> Loading...</div>
+            </div>
+        </div>
+
+        <!-- Downloaded Models (not in registry) -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Other Downloaded Models</h2>
+                <span class="badge">Local</span>
+            </div>
+            <div class="model-grid" id="otherModels">
+                <div class="empty-state">None</div>
+            </div>
+        </div>
+
+        <!-- Custom Download -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Download Custom Model</h2>
+            </div>
+            <div class="custom-download">
+                <input type="text" id="customRepo" placeholder="e.g. mlx-community/Qwen3-8B-4bit">
+                <button class="btn-primary" onclick="downloadCustom()">Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fine-Tuning Guide -->
+    <div class="section">
+        <div class="section-header" style="cursor:pointer;" onclick="document.getElementById('finetuneContent').classList.toggle('hidden')">
+            <h2>Fine-Tune for Creative Writing / Biblical Drama</h2>
+            <span class="badge" style="background:#fef3c7;color:#92400e;">LoRA Guide</span>
+        </div>
+        <div id="finetuneContent" class="hidden" style="padding:1.2rem; font-size:0.85rem; line-height:1.7;">
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Why Fine-Tune?</h3>
+            <p style="color:var(--muted); margin-bottom:1rem;">
+                Base models are good at general creative writing, but fine-tuning with LoRA lets you teach a model
+                your specific radio drama format — SFX cues, narrator style, character voice directions, and how to
+                adapt biblical/literary source material into dramatic scripts. A 300–500 example dataset can transform output quality.
+            </p>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Recommended Base Models for Fine-Tuning</h3>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:1rem; font-size:0.8rem;">
+                <thead><tr style="border-bottom:2px solid var(--border); text-align:left;">
+                    <th style="padding:0.4rem;">Model</th><th style="padding:0.4rem;">RAM</th><th style="padding:0.4rem;">Best For</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Qwen3-8B-4bit</td>
+                        <td style="padding:0.4rem;">~7 GB</td>
+                        <td style="padding:0.4rem;">Best post-fine-tune quality. Already has a drama variant (Qwen3-8B-Drama-Thinking).</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Mistral-Nemo-12B-4bit</td>
+                        <td style="padding:0.4rem;">~8 GB</td>
+                        <td style="padding:0.4rem;">128K context. Popular creative-writing base. Strong narrative + character voices.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;font-weight:600;">Llama-3.1-8B-4bit</td>
+                        <td style="padding:0.4rem;">~6 GB</td>
+                        <td style="padding:0.4rem;">Greatest improvement from LoRA. Huge community ecosystem.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.4rem;font-weight:600;">Hermes-2-Mixtral-8x7B-4bit</td>
+                        <td style="padding:0.4rem;">~26 GB</td>
+                        <td style="padding:0.4rem;">Best for biblical/theological analysis. Strong nuanced reasoning.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 1: Prepare Training Data</h3>
+            <p style="color:var(--muted); margin-bottom:0.5rem;">Create <code>train.jsonl</code> and <code>valid.jsonl</code> in chat format:</p>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:1rem;"><code>{"messages": [
+  {"role": "system", "content": "You are a radio drama scriptwriter specializing in biblical adaptations."},
+  {"role": "user", "content": "Convert Genesis 22:1-14 (The Binding of Isaac) into a radio drama scene."},
+  {"role": "assistant", "content": "[MUSIC: Ancient strings, somber]\n\nNARRATOR: (gravely) And it came to pass that God tested Abraham.\n\n[SFX: Desert wind, distant sheep bleating]\n\nGOD: (thundering, echoing) Abraham!\n\nABRAHAM: (kneeling) Here I am, Lord.\n\nGOD: Take your son — your only son Isaac, whom you love — and go to Moriah.\n\n[SFX: Abraham's sharp intake of breath]\n\nNARRATOR: (hushed) Three words seared into his heart. Your only son.\n\n[MUSIC: Tension builds with low drums]"}
+]}</code></pre>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 2: Fine-Tune with LoRA</h3>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:0.5rem;"><code># Install mlx-lm
+pip install mlx-lm
+
+# Fine-tune (QLoRA — works on 16GB Macs)
+mlx_lm.lora \
+  --model mlx-community/Qwen3-8B-4bit \
+  --data ./radio_drama_data \
+  --train \
+  --batch-size 2 \
+  --iters 600 \
+  --num-layers 16 \
+  --mask-prompt \
+  --grad-checkpoint \
+  --adapter-path ./adapters/biblical_drama</code></pre>
+            <p style="color:var(--muted); font-size:0.78rem; margin-bottom:1rem;">
+                <strong>Key flags:</strong> <code>--mask-prompt</code> learns output style (not input memorization).
+                <code>--grad-checkpoint</code> reduces memory. <code>--num-layers 16</code> balances quality vs. speed.
+            </p>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Step 3: Test Your Adapter</h3>
+            <pre style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.8rem; overflow-x:auto; font-size:0.75rem; margin-bottom:1rem;"><code># Generate with adapter (base model + adapter loaded separately)
+mlx_lm.generate \
+  --model mlx-community/Qwen3-8B-4bit \
+  --adapter-path ./adapters/biblical_drama \
+  --prompt "Convert Psalm 23 into a radio drama scene with narrator and voices." \
+  --max-tokens 1024
+
+# Fuse adapter permanently into a new model
+mlx_lm.fuse \
+  --model mlx-community/Qwen3-8B-4bit \
+  --adapter-path ./adapters/biblical_drama \
+  --save-path ./models/biblical-drama-qwen3-8b</code></pre>
+
+            <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Useful Datasets</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead><tr style="border-bottom:2px solid var(--border); text-align:left;">
+                    <th style="padding:0.4rem;">Dataset</th><th style="padding:0.4rem;">What</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>FutureMa/DramaBench</code></td>
+                        <td style="padding:0.4rem;">1,103 professional scripts in Fountain format. Best drama training data.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>aneeshas/imsdb-drama-movie-scripts</code></td>
+                        <td style="padding:0.4rem;">Drama movie scripts from IMSDB. Good for dialogue style.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>bible-nlp/biblenlp-corpus</code></td>
+                        <td style="padding:0.4rem;">Multi-language parallel Bible corpus for theological grounding.</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.4rem;"><code>Nitral-AI/Creative_Writing-ShareGPT</code></td>
+                        <td style="padding:0.4rem;">Creative writing examples in chat format. Ready for mlx-lm.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.4rem;"><code>euclaise/writingprompts</code></td>
+                        <td style="padding:0.4rem;">~4B tokens of creative writing from r/WritingPrompts.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay hidden" id="confirmOverlay">
+        <div class="confirm-box">
+            <h3 id="confirmTitle">Delete Model?</h3>
+            <p id="confirmText">This will permanently remove the model from your local cache.</p>
+            <div class="actions">
+                <button class="btn-secondary" onclick="closeConfirm()">Cancel</button>
+                <button class="btn-danger" id="confirmBtn" onclick="confirmAction()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        // Recommendation data baked into the UI
+        var RECOMMENDATIONS = {
+            // Script models
+            'qwen3-8b': { tag: 'best', label: 'Default', tip: 'Best starting point. Strong dialogue and JSON output.' },
+            'qwen3-14b': { tag: 'quality', label: 'Quality', tip: 'Best creative writing in Qwen3. Needs 16GB+ RAM.' },
+            'qwen3-30b-a3b': { tag: 'fast', label: 'MoE Fast', tip: 'Big model quality at small model speed. 16GB OK.' },
+            'llama-3.3-8b': { tag: 'best', label: 'Narrative', tip: 'Excellent narrative structure. Runs on 8GB Macs.' },
+            'llama-3.1-70b': { tag: 'heavy', label: '48GB+', tip: 'Top-tier quality. Needs M2/M3/M4 Ultra.' },
+            'mistral-small-3-8b': { tag: 'fast', label: 'Fastest', tip: 'Highest tokens/sec on mid-range hardware.' },
+            'gemma-3-12b': { tag: 'quality', label: 'Storytelling', tip: 'Strong storytelling with good JSON adherence.' },
+            'phi-4-14b': { tag: 'fast', label: 'Compact', tip: 'Microsoft. Compact with strong instruction following.' },
+            // Biblical / Literary analysis
+            'hermes-2-mixtral-8x7b': { tag: 'best', label: 'Biblical', tip: 'Best for scripture analysis and theological drama. Strong nuanced reasoning.' },
+            'hermes-3-llama-8b': { tag: 'fast', label: 'Scripture', tip: 'Hermes instruction tuning. Good scripture-to-drama on 8GB.' },
+            'qwen3-drama-8b': { tag: 'quality', label: 'Drama AI', tip: 'Pre-trained on 6K+ drama scripts. Screenplay reasoning chains.' },
+            'mistral-nemo-12b': { tag: 'quality', label: '128K Ctx', tip: '128K context. Handles entire books. Strong character voice.' },
+            // TTS models
+            'dia-1.6b': { tag: 'best', label: 'Drama', tip: 'Built for radio drama. Multi-speaker + emotion tags.' },
+            'qwen3-tts-1.7b': { tag: 'quality', label: 'Audiobook', tip: 'Best quality. Voice cloning + 10 languages.' },
+            'qwen3-tts-0.6b': { tag: 'fast', label: 'Light TTS', tip: 'Lightweight with same voice cloning features.' },
+            'kokoro-82m': { tag: 'tiny', label: '36x Speed', tip: '82M params. Fastest TTS, any Mac.' },
+            'f5-tts': { tag: 'quality', label: 'Clone', tip: 'Zero-shot voice cloning from reference audio.' },
+        };
+
+        var pendingDelete = null;
+
+        function toast(msg, type) {
+            var div = document.createElement('div');
+            div.className = 'toast ' + (type || 'success');
+            div.textContent = msg;
+            document.getElementById('toastContainer').appendChild(div);
+            setTimeout(function() { div.remove(); }, 4000);
+        }
+
+        function renderRecommendTag(key) {
+            var rec = RECOMMENDATIONS[key];
+            if (!rec) return '';
+            return '<span class="recommend-tag ' + rec.tag + '" title="' + rec.tip + '">' + rec.label + '</span>';
+        }
+
+        function renderModelRow(model, isLocal) {
+            var downloaded = model.downloaded || isLocal;
+            var sizeText = isLocal ? (model.size_gb > 1 ? model.size_gb + ' GB' : model.size_mb + ' MB') : '';
+            var statusHtml = downloaded
+                ? '<span class="model-status downloaded"><span class="dot-sm green"></span>Downloaded</span>'
+                : '<span class="model-status not-downloaded"><span class="dot-sm gray"></span>Not downloaded</span>';
+            var actionsHtml = '';
+            if (downloaded) {
+                actionsHtml = '<button class="btn-danger btn-sm" onclick="askDelete(\'' + (model.repo || model.repo_id) + '\', \'' + sizeText + '\')">Delete</button>';
+            } else {
+                actionsHtml = '<button class="btn-primary btn-sm" onclick="downloadModel(this, \'' + model.repo + '\')">Download</button>';
+            }
+
+            var repoId = model.repo || model.repo_id || '';
+            var notes = model.notes || '';
+            var recTag = renderRecommendTag(model.key || '');
+
+            return '<div class="model-row">' +
+                '<div><div class="model-name">' + (model.key || repoId.split('/').pop()) + recTag + '</div>' +
+                '<div class="model-meta">' + repoId + (notes ? ' &mdash; ' + notes : '') + '</div></div>' +
+                '<div class="model-size">' + sizeText + '</div>' +
+                statusHtml +
+                '<div class="model-actions">' + actionsHtml + '</div>' +
+                '</div>';
+        }
+
+        async function loadData() {
+            // Load registry (presets with download status)
+            try {
+                var resp = await fetch('/api/models/registry');
+                var registry = await resp.json();
+
+                ['script', 'tts', 'vision', 'asr'].forEach(function(role) {
+                    var container = document.getElementById(role + 'Models');
+                    var models = registry[role] || [];
+                    if (!models.length) {
+                        container.innerHTML = '<div class="empty-state">No presets configured</div>';
+                        return;
+                    }
+                    container.innerHTML = models.map(function(m) { return renderModelRow(m, false); }).join('');
+                });
+            } catch (e) {
+                toast('Failed to load registry: ' + e.message, 'error');
+            }
+
+            // Load local models + summary
+            try {
+                var resp2 = await fetch('/api/models/local');
+                var data = await resp2.json();
+
+                document.getElementById('statCount').textContent = data.summary.total_models;
+                document.getElementById('statSize').textContent = data.summary.total_size_gb + ' GB';
+                document.getElementById('statFree').textContent = data.summary.disk_free_gb + ' GB';
+                document.getElementById('statPath').textContent = data.summary.cache_dir;
+
+                // Find models not in registry
+                var registryRepos = new Set();
+                var regResp = await fetch('/api/models/registry');
+                var reg2 = await regResp.json();
+                Object.values(reg2).forEach(function(arr) {
+                    arr.forEach(function(m) { registryRepos.add(m.repo); });
+                });
+
+                var others = (data.models || []).filter(function(m) { return !registryRepos.has(m.repo_id); });
+                var otherContainer = document.getElementById('otherModels');
+                if (others.length) {
+                    otherContainer.innerHTML = others.map(function(m) {
+                        return renderModelRow({ repo: m.repo_id, repo_id: m.repo_id, downloaded: true, key: '', notes: '', size_gb: m.size_gb, size_mb: m.size_mb }, true);
+                    }).join('');
+                } else {
+                    otherContainer.innerHTML = '<div class="empty-state">No extra models found</div>';
+                }
+
+                // Update download status on registry rows
+                var localRepos = new Set((data.models || []).map(function(m) { return m.repo_id; }));
+                document.querySelectorAll('.model-row').forEach(function(row) {
+                    var meta = row.querySelector('.model-meta');
+                    if (!meta) return;
+                    var repo = meta.textContent.split(' \u2014 ')[0].trim();
+                    if (localRepos.has(repo)) {
+                        var statusEl = row.querySelector('.model-status');
+                        if (statusEl && statusEl.classList.contains('not-downloaded')) {
+                            statusEl.className = 'model-status downloaded';
+                            statusEl.innerHTML = '<span class="dot-sm green"></span>Downloaded';
+                            var actionsEl = row.querySelector('.model-actions');
+                            var sizeModel = data.models.find(function(m) { return m.repo_id === repo; });
+                            var sz = sizeModel ? (sizeModel.size_gb > 1 ? sizeModel.size_gb + ' GB' : sizeModel.size_mb + ' MB') : '';
+                            row.querySelector('.model-size').textContent = sz;
+                            actionsEl.innerHTML = '<button class="btn-danger btn-sm" onclick="askDelete(\'' + repo + '\', \'' + sz + '\')">Delete</button>';
+                        }
+                    }
+                });
+            } catch (e) {
+                // Cache may not exist yet
+            }
+        }
+
+        async function downloadModel(btn, repoId) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Downloading...';
+            toast('Downloading ' + repoId + '...', 'warning');
+
+            var form = new FormData();
+            form.append('repo_id', repoId);
+            try {
+                var resp = await fetch('/api/models/download', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (resp.ok) {
+                    toast('Downloaded: ' + repoId, 'success');
+                    loadData();
+                } else {
+                    toast('Download failed: ' + (data.detail || 'Error'), 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Download';
+                }
+            } catch (e) {
+                toast('Download error: ' + e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Download';
+            }
+        }
+
+        function askDelete(repoId, sizeText) {
+            pendingDelete = repoId;
+            document.getElementById('confirmTitle').textContent = 'Delete ' + repoId.split('/').pop() + '?';
+            document.getElementById('confirmText').textContent = 'This will permanently remove ' + repoId + (sizeText ? ' (' + sizeText + ')' : '') + ' from your local cache.';
+            document.getElementById('confirmOverlay').classList.remove('hidden');
+        }
+
+        function closeConfirm() {
+            pendingDelete = null;
+            document.getElementById('confirmOverlay').classList.add('hidden');
+        }
+
+        async function confirmAction() {
+            if (!pendingDelete) return;
+            closeConfirm();
+            var form = new FormData();
+            form.append('repo_id', pendingDelete);
+            toast('Deleting ' + pendingDelete + '...', 'warning');
+            try {
+                var resp = await fetch('/api/models/delete', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (resp.ok) {
+                    toast('Deleted: ' + data.repo_id + ' (freed ' + data.freed_gb + ' GB)', 'success');
+                    loadData();
+                } else {
+                    toast('Delete failed: ' + (data.detail || 'Error'), 'error');
+                }
+            } catch (e) {
+                toast('Delete error: ' + e.message, 'error');
+            }
+        }
+
+        async function downloadCustom() {
+            var input = document.getElementById('customRepo');
+            var repoId = input.value.trim();
+            if (!repoId) { toast('Enter a repo ID', 'warning'); return; }
+            if (!repoId.includes('/')) { toast('Format: org/model-name', 'warning'); return; }
+
+            var form = new FormData();
+            form.append('repo_id', repoId);
+            toast('Downloading ' + repoId + '...', 'warning');
+            try {
+                var resp = await fetch('/api/models/download', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (resp.ok) {
+                    toast('Downloaded: ' + repoId, 'success');
+                    input.value = '';
+                    loadData();
+                } else {
+                    toast('Download failed: ' + (data.detail || 'Error'), 'error');
+                }
+            } catch (e) {
+                toast('Download error: ' + e.message, 'error');
+            }
+        }
+
+        // Init
+        loadData();
+    </script>
+</body>
+</html>

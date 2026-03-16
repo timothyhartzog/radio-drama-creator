@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Function Catalog - Radio Drama Creator</title>
+    <style>
+        :root {
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --primary: #2563eb;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #e0e7ff;
+            --code-bg: #f8fafc;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header h1 { font-size: 1.3rem; color: var(--primary); }
+        header a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+        header a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; }
+        .intro {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        .intro h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .intro p { color: var(--muted); font-size: 0.9rem; }
+        .stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: var(--accent);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .module-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .module-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            user-select: none;
+        }
+        .module-header:hover { background: #f8fafc; }
+        .module-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        .module-header .badge {
+            background: var(--accent);
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .module-header .arrow {
+            color: var(--muted);
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+        .module-header.open .arrow { transform: rotate(90deg); }
+        .module-desc {
+            padding: 0 1.5rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            padding-top: 0.5rem;
+        }
+        .func-list { padding: 0; }
+        .func-item {
+            padding: 0.6rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 0.75rem;
+            align-items: baseline;
+        }
+        .func-item:last-child { border-bottom: none; }
+        .func-name {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .func-name.private { color: var(--muted); }
+        .func-sig {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: var(--muted);
+            word-break: break-all;
+        }
+        .func-desc {
+            font-size: 0.82rem;
+            color: var(--muted);
+            flex: 1;
+        }
+        .tag {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .tag.public { background: #dcfce7; color: #166534; }
+        .tag.private { background: #fef3c7; color: #92400e; }
+        .tag.class { background: #e0e7ff; color: #3730a3; }
+        .tag.abc { background: #fce7f3; color: #9d174d; }
+        .tag.gen { background: #f3e8ff; color: #6b21a8; }
+        .hidden { display: none; }
+        .search-box {
+            width: 100%;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: var(--bg);
+            margin-bottom: 1rem;
+        }
+        .search-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        @media (max-width: 700px) {
+            .func-item { flex-direction: column; gap: 0.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Function & Task Catalog</h1>
+        <nav style="display:flex;gap:1rem;font-size:0.85rem;">
+            <a href="/">Producer</a>
+            <a href="/models">Models</a>
+            <a href="/catalog" style="color:var(--primary);font-weight:600;">Catalog</a>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="intro">
+            <h2>Radio Drama Creator - Complete Function Catalog</h2>
+            <p>All public and private functions, classes, and tasks across 17 modules.</p>
+            <div class="stats">
+                <span class="stat">17 Modules</span>
+                <span class="stat">8 Classes</span>
+                <span class="stat">68 Public Functions</span>
+                <span class="stat">21 Private Functions</span>
+                <span class="stat">12 API Endpoints</span>
+            </div>
+        </div>
+
+        <input type="text" class="search-box" id="search" placeholder="Search functions, classes, modules..." oninput="filterCatalog()">
+
+        <!-- Pipeline -->
+        <div class="module-section" data-module="pipeline">
+            <div class="module-header open" onclick="toggle(this)">
+                <h3>radio_drama_creator.pipeline <span class="badge">Core</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="module-desc">Main orchestration: document -> chunks -> analysis -> script -> cast -> render -> exports</div>
+            <div class="func-list">
+                <div class="func-item"><span class="func-name">run_pipeline</span><span class="func-sig">(source_path, output_dir, config) -> ProductionPackage</span><span class="tag public">public</span><span class="func-desc">Full end-to-end production pipeline</span></div>
+            </div>
+        </div>
+
+        <!-- Models -->
+        <div class="module-section" data-module="models">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.models <span class="badge">Data</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">DocumentChunk</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Source document segment (index, source_path, text, word_count)</span></div>
+                <div class="func-item"><span class="func-name">StoryAnalysis</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Extracted story metadata (title, themes, characters, conflicts)</span></div>
+                <div class="func-item"><span class="func-name">DialogueBeat</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Single dialogue line (speaker, text, emotion, cue)</span></div>
+                <div class="func-item"><span class="func-name">Scene</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Complete scene with intro, ambience, beats, closing</span></div>
+                <div class="func-item"><span class="func-name">VoiceProfile</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Character voice assignment (voice, pace, pitch)</span></div>
+                <div class="func-item"><span class="func-name">ProductionPackage</span><span class="func-sig">@dataclass(slots=True)</span><span class="tag class">class</span><span class="func-desc">Complete production output bundle with to_dict()</span></div>
+            </div>
+        </div>
+
+        <!-- Config -->
+        <div class="module-section" data-module="config">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.config <span class="badge">Config</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">ModelSettings</span><span class="func-sig">@dataclass</span><span class="tag class">class</span><span class="func-desc">Script backend, MLX models, temperature, max tokens</span></div>
+                <div class="func-item"><span class="func-name">AudioSettings</span><span class="func-sig">@dataclass</span><span class="tag class">class</span><span class="func-desc">TTS renderer, sample rate, gaps config</span></div>
+                <div class="func-item"><span class="func-name">StyleSettings</span><span class="func-sig">@dataclass</span><span class="tag class">class</span><span class="func-desc">Scenes count, lines per scene, genre, tone</span></div>
+                <div class="func-item"><span class="func-name">CastingSettings</span><span class="func-sig">@dataclass</span><span class="tag class">class</span><span class="func-desc">Voice/pace overrides per character</span></div>
+                <div class="func-item"><span class="func-name">AppConfig</span><span class="func-sig">@dataclass</span><span class="tag class">class</span><span class="func-desc">Main config with load(path) classmethod</span></div>
+            </div>
+        </div>
+
+        <!-- Ingest -->
+        <div class="module-section" data-module="ingest">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.ingest <span class="badge">IO</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">load_document</span><span class="func-sig">(path, chunk_words=240) -> list[DocumentChunk]</span><span class="tag public">public</span><span class="func-desc">Load .txt/.md/.pdf/.rtf/.doc/.docx and chunk</span></div>
+                <div class="func-item"><span class="func-name private">_read_document</span><span class="func-sig">(path: Path) -> str</span><span class="tag private">private</span><span class="func-desc">Format-specific reader (text, pypdf, textutil)</span></div>
+                <div class="func-item"><span class="func-name private">_normalize_text</span><span class="func-sig">(text: str) -> str</span><span class="tag private">private</span><span class="func-desc">Clean whitespace and line breaks</span></div>
+            </div>
+        </div>
+
+        <!-- Analyze -->
+        <div class="module-section" data-module="analyze">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.analyze <span class="badge">NLP</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">analyze_document</span><span class="func-sig">(chunks: list[DocumentChunk]) -> StoryAnalysis</span><span class="tag public">public</span><span class="func-desc">Extract title, characters, themes, conflicts, mood</span></div>
+                <div class="func-item"><span class="func-name private">_extract_characters</span><span class="func-sig">(text: str) -> list[str]</span><span class="tag private">private</span><span class="func-desc">NER via capitalization + honorifics</span></div>
+                <div class="func-item"><span class="func-name private">_extract_themes</span><span class="func-sig">(text: str) -> list[str]</span><span class="tag private">private</span><span class="func-desc">Word frequency analysis</span></div>
+                <div class="func-item"><span class="func-name private">_extract_conflicts</span><span class="func-sig">(sentences: list[str]) -> list[str]</span><span class="tag private">private</span><span class="func-desc">Conflict keyword detection</span></div>
+                <div class="func-item"><span class="func-name private">_guess_setting</span><span class="func-sig">(sentences: list[str]) -> str</span><span class="tag private">private</span><span class="func-desc">Setting inference from keywords</span></div>
+                <div class="func-item"><span class="func-name private">_guess_mood</span><span class="func-sig">(text: str) -> str</span><span class="tag private">private</span><span class="func-desc">Mood detection from word patterns</span></div>
+            </div>
+        </div>
+
+        <!-- Dramatize -->
+        <div class="module-section" data-module="dramatize">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.dramatize <span class="badge">Script</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">ScriptGenerator</span><span class="func-sig">ABC</span><span class="tag abc">abstract</span><span class="func-desc">Base class for script generators</span></div>
+                <div class="func-item"><span class="func-name">HeuristicScriptGenerator</span><span class="func-sig">extends ScriptGenerator</span><span class="tag class">class</span><span class="func-desc">Rule-based scene/dialogue generation</span></div>
+                <div class="func-item"><span class="func-name">MLXScriptGenerator</span><span class="func-sig">extends ScriptGenerator</span><span class="tag class">class</span><span class="func-desc">LLM-based script via mlx-lm</span></div>
+                <div class="func-item"><span class="func-name">build_script_generator</span><span class="func-sig">(config) -> ScriptGenerator</span><span class="tag public">public</span><span class="func-desc">Factory - returns heuristic or MLX generator</span></div>
+                <div class="func-item"><span class="func-name">build_mlx_prompt</span><span class="func-sig">(analysis, config) -> str</span><span class="tag public">public</span><span class="func-desc">Construct system prompt for MLX models</span></div>
+            </div>
+        </div>
+
+        <!-- Casting -->
+        <div class="module-section" data-module="casting">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.casting <span class="badge">Audio</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">build_cast</span><span class="func-sig">(analysis, config) -> list[VoiceProfile]</span><span class="tag public">public</span><span class="func-desc">Create voice profiles for all characters</span></div>
+                <div class="func-item"><span class="func-name">voice_for_speaker</span><span class="func-sig">(cast, speaker) -> VoiceProfile</span><span class="tag public">public</span><span class="func-desc">Lookup voice by character name</span></div>
+                <div class="func-item"><span class="func-name">list_available_voices</span><span class="func-sig">() -> list[str]</span><span class="tag public">public</span><span class="func-desc">Query macOS /usr/bin/say voices</span></div>
+            </div>
+        </div>
+
+        <!-- Render -->
+        <div class="module-section" data-module="render">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.render <span class="badge">Audio</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">Renderer</span><span class="func-sig">ABC</span><span class="tag abc">abstract</span><span class="func-desc">Base class for audio/script rendering</span></div>
+                <div class="func-item"><span class="func-name">ScriptOnlyRenderer</span><span class="func-sig">extends Renderer</span><span class="tag class">class</span><span class="func-desc">Write script.txt and manifest only</span></div>
+                <div class="func-item"><span class="func-name">MacOSSayRenderer</span><span class="func-sig">extends Renderer</span><span class="tag class">class</span><span class="func-desc">Uses /usr/bin/say for TTS</span></div>
+                <div class="func-item"><span class="func-name">MLXAudioRenderer</span><span class="func-sig">extends Renderer</span><span class="tag class">class</span><span class="func-desc">Uses mlx-audio for local TTS</span></div>
+                <div class="func-item"><span class="func-name">build_renderer</span><span class="func-sig">(config) -> Renderer</span><span class="tag public">public</span><span class="func-desc">Factory - returns appropriate renderer</span></div>
+                <div class="func-item"><span class="func-name">render_script_text</span><span class="func-sig">(package) -> str</span><span class="tag public">public</span><span class="func-desc">Format production as readable script</span></div>
+            </div>
+        </div>
+
+        <!-- Exports -->
+        <div class="module-section" data-module="exports">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.exports <span class="badge">Output</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">write_additional_exports</span><span class="func-sig">(package) -> None</span><span class="tag public">public</span><span class="func-desc">Generate cue_sheet.csv, episode_outline.md, subtitles.srt</span></div>
+                <div class="func-item"><span class="func-name">build_cue_sheet</span><span class="func-sig">(package) -> str</span><span class="tag public">public</span><span class="func-desc">CSV with scene/beat/speaker/emotion/cue/text</span></div>
+                <div class="func-item"><span class="func-name">build_episode_outline</span><span class="func-sig">(package) -> str</span><span class="tag public">public</span><span class="func-desc">Markdown summary with cast and scenes</span></div>
+                <div class="func-item"><span class="func-name">build_subtitles</span><span class="func-sig">(package) -> str</span><span class="tag public">public</span><span class="func-desc">SRT with estimated timing from word count</span></div>
+            </div>
+        </div>
+
+        <!-- Book Extraction -->
+        <div class="module-section" data-module="book_extraction">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.book_extraction <span class="badge">IO</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">extract_text_from_book_using_calibre</span><span class="func-sig">(book_path: str) -> str</span><span class="tag public">public</span><span class="func-desc">Extract text via Calibre ebook-convert</span></div>
+                <div class="func-item"><span class="func-name">extract_text_from_book_using_textract</span><span class="func-sig">(book_path: str) -> str</span><span class="tag public">public</span><span class="func-desc">Extract text via textract library</span></div>
+                <div class="func-item"><span class="func-name">extract_main_content</span><span class="func-sig">(text, start_marker, end_marker) -> str</span><span class="tag public">public</span><span class="func-desc">Extract content between markers (e.g. PROLOGUE..ABOUT THE AUTHOR)</span></div>
+                <div class="func-item"><span class="func-name">normalize_line_breaks</span><span class="func-sig">(text: str) -> str</span><span class="tag public">public</span><span class="func-desc">Normalize line endings</span></div>
+                <div class="func-item"><span class="func-name">fix_unterminated_quotes</span><span class="func-sig">(text: str) -> str</span><span class="tag public">public</span><span class="func-desc">Close open quotes in text</span></div>
+                <div class="func-item"><span class="func-name">process_book_and_extract_text</span><span class="func-sig">(book_path, text_decoding_option) -> Generator</span><span class="tag public">public</span><span class="tag gen">generator</span><span class="func-desc">Full extraction pipeline with progress</span></div>
+            </div>
+        </div>
+
+        <!-- Character Identification -->
+        <div class="module-section" data-module="character_identification">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.character_identification <span class="badge">NLP</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">extract_dialogues</span><span class="func-sig">(text: str) -> list[str]</span><span class="tag public">public</span><span class="func-desc">Extract quoted dialogue via regex</span></div>
+                <div class="func-item"><span class="func-name">identify_speaker_using_named_entity_recognition</span><span class="func-sig">(line_map, index, line, prev_speaker, protagonist, char_map) -> str</span><span class="tag public">public</span><span class="func-desc">NER-based speaker detection with pronoun resolution</span></div>
+                <div class="func-item"><span class="func-name">identify_character_gender_and_age_using_llm</span><span class="func-sig">(client, model, name, index, lines) -> dict</span><span class="tag public">public</span><span class="func-desc">LLM inference for gender score (1-10) and age</span></div>
+                <div class="func-item"><span class="func-name">identify_characters_and_output_book_to_jsonl</span><span class="func-sig">(text, protagonist, client, model, output_dir) -> Generator</span><span class="tag public">public</span><span class="tag gen">generator</span><span class="func-desc">Full character identification pipeline</span></div>
+            </div>
+        </div>
+
+        <!-- Protagonist -->
+        <div class="module-section" data-module="protagonist">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.protagonist <span class="badge">NLP</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">find_book_protagonist_using_search_engine_and_llm</span><span class="func-sig">(title, client, model, search_method) -> str</span><span class="tag public">public</span><span class="func-desc">Search web + LLM to find protagonist</span></div>
+                <div class="func-item"><span class="func-name">find_book_protagonist</span><span class="func-sig">(title, client, model) -> str</span><span class="tag public">public</span><span class="func-desc">Wrapper using default search method</span></div>
+            </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="module-section" data-module="metadata">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.metadata <span class="badge">IO</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">get_ebook_metadata_with_cover</span><span class="func-sig">(book_path: str) -> dict</span><span class="tag public">public</span><span class="func-desc">Extract metadata + cover from EPUB/PDF</span></div>
+            </div>
+        </div>
+
+        <!-- Kokoro Renderer -->
+        <div class="module-section" data-module="kokoro_renderer">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.kokoro_renderer <span class="badge">TTS</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">split_and_annotate_text</span><span class="func-sig">(text: str) -> list[tuple[str, str]]</span><span class="tag public">public</span><span class="func-desc">Split into dialogue/narration segments</span></div>
+                <div class="func-item"><span class="func-name">check_if_chapter_heading</span><span class="func-sig">(text: str) -> bool</span><span class="tag public">public</span><span class="func-desc">Detect chapter/part headings</span></div>
+                <div class="func-item"><span class="func-name">find_voice_for_gender_score</span><span class="func-sig">(character, gender_map, voice_map) -> str</span><span class="tag public">public</span><span class="func-desc">Map gender score (1-10) to Kokoro voice</span></div>
+                <div class="func-item"><span class="func-name">generate_audio_with_single_voice</span><span class="func-sig">(client, text, format, dir, narrator, dialogue) -> Generator</span><span class="tag public">public</span><span class="tag gen">generator</span><span class="func-desc">Audiobook with narrator + dialogue voice</span></div>
+                <div class="func-item"><span class="func-name">generate_audio_with_multiple_voices</span><span class="func-sig">(client, text, gender_map, format, dir, narrator) -> Generator</span><span class="tag public">public</span><span class="tag gen">generator</span><span class="func-desc">Audiobook with per-character voices</span></div>
+            </div>
+        </div>
+
+        <!-- MLX Registry -->
+        <div class="module-section" data-module="mlx_registry">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.mlx_registry <span class="badge">Models</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">MLXModelPreset</span><span class="func-sig">@dataclass(frozen=True, slots=True)</span><span class="tag class">class</span><span class="func-desc">Model config (key, repo, family, role, sample_rate...)</span></div>
+                <div class="func-item"><span class="func-name">resolve_script_model</span><span class="func-sig">(name: str) -> MLXModelPreset</span><span class="tag public">public</span><span class="func-desc">Lookup script model preset by name</span></div>
+                <div class="func-item"><span class="func-name">resolve_vision_model</span><span class="func-sig">(name: str) -> MLXModelPreset</span><span class="tag public">public</span><span class="func-desc">Lookup vision model preset by name</span></div>
+                <div class="func-item"><span class="func-name">resolve_tts_model</span><span class="func-sig">(name: str) -> MLXModelPreset</span><span class="tag public">public</span><span class="func-desc">Lookup TTS model preset by name</span></div>
+                <div class="func-item"><span class="func-name">available_model_presets</span><span class="func-sig">() -> dict[str, list[MLXModelPreset]]</span><span class="tag public">public</span><span class="func-desc">All presets grouped by role</span></div>
+            </div>
+        </div>
+
+        <!-- Utils: Audio -->
+        <div class="module-section" data-module="utils.audio_utils">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.utils.audio_utils <span class="badge">Audio</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">escape_metadata</span><span class="func-sig">(value: str) -> str</span><span class="tag public">public</span><span class="func-desc">Escape quotes in FFmpeg metadata</span></div>
+                <div class="func-item"><span class="func-name">get_audio_duration_using_ffprobe</span><span class="func-sig">(file_path: str) -> int</span><span class="tag public">public</span><span class="func-desc">Duration in ms via ffprobe</span></div>
+                <div class="func-item"><span class="func-name">get_audio_duration_using_raw_ffmpeg</span><span class="func-sig">(file_path: str) -> int</span><span class="tag public">public</span><span class="func-desc">Duration in ms via ffmpeg fallback</span></div>
+                <div class="func-item"><span class="func-name">generate_chapters_file</span><span class="func-sig">(chapter_files, output_file) -> None</span><span class="tag public">public</span><span class="func-desc">Generate FFmpeg chapters.txt</span></div>
+                <div class="func-item"><span class="func-name">convert_audio_file_formats</span><span class="func-sig">(input_fmt, output_fmt, folder, name) -> None</span><span class="tag public">public</span><span class="func-desc">Convert between audio formats via FFmpeg</span></div>
+                <div class="func-item"><span class="func-name">merge_chapters_to_m4b</span><span class="func-sig">(book_path, chapter_files) -> None</span><span class="tag public">public</span><span class="func-desc">Merge chapters into M4B with metadata + cover</span></div>
+                <div class="func-item"><span class="func-name">merge_chapters_to_standard_audio_file</span><span class="func-sig">(chapter_files) -> None</span><span class="tag public">public</span><span class="func-desc">Merge chapters into single M4A</span></div>
+                <div class="func-item"><span class="func-name">add_silence_to_audio_file</span><span class="func-sig">(temp_dir, input_file_name, pause_duration) -> None</span><span class="tag public">public</span><span class="func-desc">Append silence to end of audio file</span></div>
+            </div>
+        </div>
+
+        <!-- Utils: File -->
+        <div class="module-section" data-module="utils.file_utils">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.utils.file_utils <span class="badge">IO</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">empty_file</span><span class="func-sig">(file_name: str) -> None</span><span class="tag public">public</span><span class="func-desc">Clear file contents</span></div>
+                <div class="func-item"><span class="func-name">empty_directory</span><span class="func-sig">(directory_path: str) -> None</span><span class="tag public">public</span><span class="func-desc">Remove all files/subdirs in directory</span></div>
+                <div class="func-item"><span class="func-name">read_json</span><span class="func-sig">(filename: str) -> dict</span><span class="tag public">public</span><span class="func-desc">Load JSON from file</span></div>
+                <div class="func-item"><span class="func-name">write_json_to_file</span><span class="func-sig">(data, file_name) -> None</span><span class="tag public">public</span><span class="func-desc">Write dict as JSON</span></div>
+                <div class="func-item"><span class="func-name">write_jsons_to_jsonl_file</span><span class="func-sig">(json_objects, file_name) -> None</span><span class="tag public">public</span><span class="func-desc">Append JSON objects as JSONL lines</span></div>
+                <div class="func-item"><span class="func-name">ensure_directory</span><span class="func-sig">(path) -> Path</span><span class="tag public">public</span><span class="func-desc">Create directory if it doesn't exist</span></div>
+            </div>
+        </div>
+
+        <!-- Utils: Shell -->
+        <div class="module-section" data-module="utils.shell_utils">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.utils.shell_utils <span class="badge">System</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">check_if_calibre_is_installed</span><span class="func-sig">() -> bool</span><span class="tag public">public</span><span class="func-desc">Check for calibre/ebook-convert in PATH</span></div>
+                <div class="func-item"><span class="func-name">check_if_ffmpeg_is_installed</span><span class="func-sig">() -> bool</span><span class="tag public">public</span><span class="func-desc">Check for ffmpeg in PATH</span></div>
+                <div class="func-item"><span class="func-name">check_if_ffprobe_is_installed</span><span class="func-sig">() -> bool</span><span class="tag public">public</span><span class="func-desc">Check for ffprobe in PATH</span></div>
+                <div class="func-item"><span class="func-name">run_shell_command</span><span class="func-sig">(command: str) -> CompletedProcess</span><span class="tag public">public</span><span class="func-desc">Execute shell command with error handling</span></div>
+                <div class="func-item"><span class="func-name">run_shell_command_without_virtualenv</span><span class="func-sig">(command: str) -> CompletedProcess</span><span class="tag public">public</span><span class="func-desc">Execute without venv PATH</span></div>
+            </div>
+        </div>
+
+        <!-- Utils: Health Check -->
+        <div class="module-section" data-module="utils.health_check">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.utils.health_check <span class="badge">API</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">check_if_kokoro_api_is_up</span><span class="func-sig">(client) -> tuple[bool, str|None]</span><span class="tag public">public</span><span class="func-desc">Test Kokoro TTS API connectivity</span></div>
+                <div class="func-item"><span class="func-name">check_if_llm_is_up</span><span class="func-sig">(client, model_name) -> tuple[bool, str]</span><span class="tag public">public</span><span class="func-desc">Test LLM API connectivity</span></div>
+            </div>
+        </div>
+
+        <!-- Web App -->
+        <div class="module-section" data-module="web.app">
+            <div class="module-header" onclick="toggle(this)">
+                <h3>radio_drama_creator.web.app <span class="badge">API</span></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="func-list hidden">
+                <div class="func-item"><span class="func-name">GET /</span><span class="func-sig">index(request)</span><span class="tag public">endpoint</span><span class="func-desc">Main web UI page</span></div>
+                <div class="func-item"><span class="func-name">GET /catalog</span><span class="func-sig">catalog(request)</span><span class="tag public">endpoint</span><span class="func-desc">Function catalog page</span></div>
+                <div class="func-item"><span class="func-name">GET /api/health</span><span class="func-sig">health_check()</span><span class="tag public">endpoint</span><span class="func-desc">System health check</span></div>
+                <div class="func-item"><span class="func-name">GET /api/models</span><span class="func-sig">list_models()</span><span class="tag public">endpoint</span><span class="func-desc">List MLX model presets</span></div>
+                <div class="func-item"><span class="func-name">POST /api/upload</span><span class="func-sig">upload_book(file)</span><span class="tag public">endpoint</span><span class="func-desc">Upload a document for processing</span></div>
+                <div class="func-item"><span class="func-name">GET /api/metadata/{id}</span><span class="func-sig">get_metadata(file_id)</span><span class="tag public">endpoint</span><span class="func-desc">Extract ebook metadata</span></div>
+                <div class="func-item"><span class="func-name">POST /api/produce</span><span class="func-sig">produce_radio_drama(...)</span><span class="tag public">endpoint</span><span class="func-desc">Run full production pipeline</span></div>
+                <div class="func-item"><span class="func-name">GET /api/jobs/{id}</span><span class="func-sig">get_job_status(job_id)</span><span class="tag public">endpoint</span><span class="func-desc">Check job status</span></div>
+                <div class="func-item"><span class="func-name">GET /api/jobs/{id}/files</span><span class="func-sig">list_job_files(job_id)</span><span class="tag public">endpoint</span><span class="func-desc">List output files</span></div>
+                <div class="func-item"><span class="func-name">GET /api/jobs/{id}/download/{f}</span><span class="func-sig">download_file(job_id, filename)</span><span class="tag public">endpoint</span><span class="func-desc">Download output file</span></div>
+                <div class="func-item"><span class="func-name">POST /api/convert</span><span class="func-sig">convert_audio(job_id, filename, fmt)</span><span class="tag public">endpoint</span><span class="func-desc">Convert audio format</span></div>
+                <div class="func-item"><span class="func-name">POST /api/identify-characters</span><span class="func-sig">identify_characters(file_id, protagonist)</span><span class="tag public">endpoint</span><span class="func-desc">Run NER character identification</span></div>
+                <div class="func-item"><span class="func-name">POST /api/extract-text</span><span class="func-sig">extract_text(file_id, method)</span><span class="tag public">endpoint</span><span class="func-desc">Extract text from document</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggle(header) {
+            header.classList.toggle('open');
+            var list = header.parentElement.querySelector('.func-list');
+            if (list) list.classList.toggle('hidden');
+        }
+
+        function filterCatalog() {
+            var query = document.getElementById('search').value.toLowerCase();
+            document.querySelectorAll('.module-section').forEach(function(section) {
+                var items = section.querySelectorAll('.func-item');
+                var moduleMatch = section.dataset.module.toLowerCase().includes(query);
+                var anyMatch = moduleMatch;
+                items.forEach(function(item) {
+                    var text = item.textContent.toLowerCase();
+                    var match = text.includes(query) || moduleMatch;
+                    item.style.display = match ? '' : 'none';
+                    if (match) anyMatch = true;
+                });
+                section.style.display = anyMatch ? '' : 'none';
+                if (anyMatch && query) {
+                    section.querySelector('.module-header').classList.add('open');
+                    var list = section.querySelector('.func-list');
+                    if (list) list.classList.remove('hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

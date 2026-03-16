@@ -128,6 +128,38 @@ def write_closing_sting(
     return write_chord(path, chord, duration_ms, sample_rate, volume=0.20, fade_ms=500)
 
 
+def write_cue_tone(
+    path: Path,
+    cue: str,
+    sample_rate: int = 22050,
+    duration_ms: int = 600,
+) -> Path:
+    """Generate a short tonal cue matched to a beat cue description.
+
+    Uses keyword matching to select a frequency range appropriate
+    for the dramatic action described (e.g. "organ swell", "footsteps",
+    "door latch", "low room tone").
+    """
+    cue_lower = cue.lower()
+    if any(w in cue_lower for w in ("organ", "swell", "fanfare", "brass")):
+        return write_chord(path, [220.0, 277.2, 329.6], duration_ms, sample_rate, volume=0.12, fade_ms=150)
+    if any(w in cue_lower for w in ("footstep", "footsteps", "step", "walk")):
+        # Two brief low pulses to simulate footsteps
+        return write_tone(path, 120.0, duration_ms, sample_rate, volume=0.08, fade_ms=60)
+    if any(w in cue_lower for w in ("door", "latch", "click", "knock")):
+        return write_tone(path, 800.0, min(300, duration_ms), sample_rate, volume=0.10, fade_ms=40)
+    if any(w in cue_lower for w in ("phone", "ring", "bell", "chime")):
+        return write_tone(path, 880.0, duration_ms, sample_rate, volume=0.10, fade_ms=80)
+    if any(w in cue_lower for w in ("low", "room", "tone", "hum", "drone")):
+        return write_tone(path, 80.0, duration_ms, sample_rate, volume=0.06, fade_ms=120)
+    if any(w in cue_lower for w in ("shot", "gun", "bang", "explosion")):
+        return write_tone(path, 60.0, min(400, duration_ms), sample_rate, volume=0.18, fade_ms=30)
+    if any(w in cue_lower for w in ("thunder", "crash", "rumble")):
+        return write_chord(path, [40.0, 55.0, 73.4], duration_ms, sample_rate, volume=0.14, fade_ms=100)
+    # Default: neutral soft ping
+    return write_tone(path, 440.0, min(400, duration_ms), sample_rate, volume=0.07, fade_ms=100)
+
+
 def write_ambience_bed(
     path: Path,
     ambience_hint: str,

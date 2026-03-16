@@ -226,6 +226,9 @@ async def produce_radio_drama(
     renderer: str = Form("script"),
     tts_preset: str = Form("dia-1.6b"),
     tone: str = Form("suspenseful, theatrical, intimate"),
+    narration_ratio: float = Form(0.25),
+    music_beds: bool = Form(False),
+    sound_effects: bool = Form(False),
 ):
     """Run the full radio drama production pipeline."""
     file_path = _validate_file_id(file_id)
@@ -238,6 +241,7 @@ async def produce_radio_drama(
     scenes = max(1, min(scenes, 20))
     lines_per_scene = max(1, min(lines_per_scene, 50))
     tone = tone[:200]
+    narration_ratio = max(0.0, min(1.0, narration_ratio))
 
     job_id = uuid.uuid4().hex[:12]
     job_output = OUTPUT_DIR / job_id
@@ -248,10 +252,13 @@ async def produce_radio_drama(
     config.style.scenes = scenes
     config.style.lines_per_scene = lines_per_scene
     config.style.tone = tone
+    config.style.narration_ratio = narration_ratio
     config.models.script_backend = script_backend
     config.models.script_preset = script_preset
     config.audio.renderer = renderer
     config.audio.tts_preset = tts_preset
+    config.audio.music_beds = music_beds
+    config.audio.sound_effects = sound_effects
 
     _jobs[job_id] = {"status": "running", "output_dir": str(job_output)}
     logger.info("Starting job %s for file %s", job_id, file_id)

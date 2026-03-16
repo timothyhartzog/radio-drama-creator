@@ -123,6 +123,12 @@ class MacOSSayRenderer(Renderer):
             rendered.append(wav_path)
             gap_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_gap.wav"
             rendered.append(_write_silence(gap_path, config.audio.line_gap_ms, config.audio.sample_rate))
+            # SFX cue tone after each beat gap
+            if config.audio.sound_effects and beat.cue:
+                cue_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_cue.wav"
+                from .sound_effects import write_cue_tone
+                write_cue_tone(cue_path, beat.cue, config.audio.sample_rate)
+                rendered.append(cue_path)
 
         closing_index = start_index + len(scene.beats) + 1
         closing_aiff = lines_dir / f"{closing_index:04d}_closing.aiff"
@@ -172,6 +178,9 @@ class MLXAudioRenderer(Renderer):
         audio_segments: list[Path] = []
         segment_index = 0
 
+        # Build Dia speaker-slot map: first unique non-Narrator speaker → [S2], rest → [S1]
+        speaker_slots = _build_dia_speaker_slots(package)
+
         # Opening fanfare
         if config.audio.music_beds:
             audio_segments.append(
@@ -188,7 +197,7 @@ class MLXAudioRenderer(Renderer):
                 segment_index += 1
 
             audio_segments.extend(
-                self._render_scene(scene, segment_index, package, lines_dir, wav_dir, config, preset, target_sample_rate)
+                self._render_scene(scene, segment_index, package, lines_dir, wav_dir, config, preset, target_sample_rate, speaker_slots)
             )
             segment_index += len(scene.beats) + 2
             should_add_gap = (
@@ -230,22 +239,30 @@ class MLXAudioRenderer(Renderer):
         config: AppConfig,
         preset,
         sample_rate: int,
+        speaker_slots: dict[str, str],
     ) -> list[Path]:
         rendered: list[Path] = []
         intro_path = wav_dir / f"{start_index:04d}_intro.wav"
-        self._speak_to_wav(package, "Narrator", scene.announcer_intro, intro_path, config, preset, sample_rate)
+        self._speak_to_wav(package, "Narrator", scene.announcer_intro, intro_path, config, preset, sample_rate, speaker_slots=speaker_slots)
         rendered.append(intro_path)
 
         for offset, beat in enumerate(scene.beats, start=1):
             wav_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}.wav"
-            self._speak_to_wav(package, beat.speaker, beat.text, wav_path, config, preset, sample_rate, emotion=beat.emotion)
+            self._speak_to_wav(package, beat.speaker, beat.text, wav_path, config, preset, sample_rate, emotion=beat.emotion, speaker_slots=speaker_slots)
             rendered.append(wav_path)
             gap_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_gap.wav"
             rendered.append(_write_silence(gap_path, config.audio.line_gap_ms, sample_rate))
 
+            # SFX cue tone: insert a brief tonal cue when beat.cue is set
+            if config.audio.sound_effects and beat.cue:
+                cue_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_cue.wav"
+                from .sound_effects import write_cue_tone
+                write_cue_tone(cue_path, beat.cue, sample_rate)
+                rendered.append(cue_path)
+
         closing_index = start_index + len(scene.beats) + 1
         closing_path = wav_dir / f"{closing_index:04d}_closing.wav"
-        self._speak_to_wav(package, "Narrator", scene.closing, closing_path, config, preset, sample_rate)
+        self._speak_to_wav(package, "Narrator", scene.closing, closing_path, config, preset, sample_rate, speaker_slots=speaker_slots)
         rendered.append(closing_path)
         return rendered
 
@@ -259,6 +276,7 @@ class MLXAudioRenderer(Renderer):
         preset,
         sample_rate: int,
         emotion: str = "",
+        speaker_slots: dict[str, str] | None = None,
     ) -> None:
         try:
             from mlx_audio.tts.generate import generate_audio
@@ -274,12 +292,14 @@ class MLXAudioRenderer(Renderer):
             self._loaded_repo = model_repo
 
         profile = voice_for_speaker(package.cast, speaker)
-        prompt_text = _build_tts_text(preset.family, speaker, text, emotion)
+        slot = (speaker_slots or {}).get(speaker, "[S1]")
+        prompt_text = _build_tts_text(preset.family, speaker, text, emotion, slot)
         kwargs = _mlx_audio_kwargs(
             preset_family=preset.family,
             profile=profile,
             config=config,
             preset=preset,
+            speaker=speaker,
         )
         result = _call_generate_audio(generate_audio, self._loaded_model, prompt_text, kwargs)
         audio = getattr(result, "audio", result)
@@ -367,25 +387,28 @@ def _concat_wavs(parts: list[Path], output_path: Path) -> None:
                 out.writeframes(wav_file.readframes(wav_file.getnframes()))
 
 
-def _build_tts_text(preset_family: str, speaker: str, text: str, emotion: str) -> str:
+def _build_tts_text(preset_family: str, speaker: str, text: str, emotion: str, slot: str = "[S1]") -> str:
     if preset_family == "dia":
         dia_cue = emotion_to_dia_tag(emotion) if emotion else "(measured)"
-        return f"[S1] {dia_cue} {text}"
+        return f"{slot} {dia_cue} {text}"
     if preset_family == "qwen3-tts":
         descriptor = emotion_to_qwen_descriptor(emotion) if emotion else "steady"
         return f"{speaker}, {descriptor}: {text}"
     return text
 
 
-def _mlx_audio_kwargs(preset_family: str, profile, config: AppConfig, preset) -> dict:
+def _mlx_audio_kwargs(preset_family: str, profile, config: AppConfig, preset, speaker: str = "") -> dict:
+    # Per-character voice override takes precedence over the global tts_voice setting.
+    # This allows users to assign distinct voices to each character on MLX TTS backends.
+    per_char_voice = config.casting.voice_overrides.get(speaker, "") if speaker else ""
     if preset_family == "kokoro":
-        voice = config.audio.tts_voice or profile.voice or preset.default_voice
+        voice = per_char_voice or config.audio.tts_voice or profile.voice or preset.default_voice
         return {
             "voice": voice,
             "lang_code": config.audio.tts_lang_code or preset.default_lang_code,
         }
     if preset_family == "qwen3-tts":
-        voice = config.audio.tts_voice or profile.voice or preset.default_voice
+        voice = per_char_voice or config.audio.tts_voice or profile.voice or preset.default_voice
         return {
             "voice": voice,
             "language": config.audio.tts_language or preset.default_language,
@@ -393,6 +416,26 @@ def _mlx_audio_kwargs(preset_family: str, profile, config: AppConfig, preset) ->
     if preset_family == "dia":
         return {}
     return {}
+
+
+def _build_dia_speaker_slots(package: ProductionPackage) -> dict[str, str]:
+    """Map each unique speaker to a Dia slot ([S1] or [S2]).
+
+    Narrator always gets [S1].  The first non-Narrator character that appears
+    across all scenes gets [S2], every other speaker also falls back to [S1].
+    This lets Dia render two distinct synthetic voices for the main dialogue pair.
+    """
+    slots: dict[str, str] = {"Narrator": "[S1]"}
+    second_slot_assigned = False
+    for scene in package.scenes:
+        for beat in scene.beats:
+            if beat.speaker not in slots:
+                if not second_slot_assigned:
+                    slots[beat.speaker] = "[S2]"
+                    second_slot_assigned = True
+                else:
+                    slots[beat.speaker] = "[S1]"
+    return slots
 
 
 def _write_audio_like_to_wav(audio, path: Path, sample_rate: int) -> None:

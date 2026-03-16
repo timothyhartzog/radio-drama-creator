@@ -17,6 +17,7 @@ class ScriptGenerator(ABC):
 class HeuristicScriptGenerator(ScriptGenerator):
     def generate(self, analysis: StoryAnalysis, config: AppConfig) -> list[Scene]:
         cast = _build_character_cycle(analysis.characters)
+        non_narrator = [c for c in cast if c != "Narrator"]
         conflicts = analysis.conflicts or ["A truth strains against silence."]
         scenes: list[Scene] = []
 
@@ -30,8 +31,31 @@ class HeuristicScriptGenerator(ScriptGenerator):
             )
             beats: list[DialogueBeat] = []
 
+            narrator_target = int(config.style.lines_per_scene * config.style.narration_ratio)
+            narrator_count = 0
+            dialogue_count = 0
+            dialogue_cycle = 0
+
             for beat_index in range(config.style.lines_per_scene):
-                speaker = cast[beat_index % len(cast)]
+                remaining = config.style.lines_per_scene - beat_index
+                narrator_needed = narrator_target - narrator_count
+                # Force narrator if we must fill the quota, force dialogue if narrator is saturated
+                if narrator_needed >= remaining:
+                    speaker = "Narrator"
+                elif narrator_count >= narrator_target:
+                    speaker = non_narrator[dialogue_cycle % len(non_narrator)] if non_narrator else "Narrator"
+                    dialogue_cycle += 1
+                elif beat_index % max(1, round(1.0 / config.style.narration_ratio)) == 0:
+                    speaker = "Narrator"
+                else:
+                    speaker = non_narrator[dialogue_cycle % len(non_narrator)] if non_narrator else "Narrator"
+                    dialogue_cycle += 1
+
+                if speaker == "Narrator":
+                    narrator_count += 1
+                else:
+                    dialogue_count += 1
+
                 emotion = _emotion_for_beat(scene_index, beat_index, analysis.mood)
                 cue = _cue_for_beat(scene_index, beat_index)
                 line_text = _build_line(
@@ -97,9 +121,11 @@ def build_script_generator(config: AppConfig) -> ScriptGenerator:
 
 
 def build_mlx_prompt(analysis: StoryAnalysis, config: AppConfig) -> str:
+        narrator_pct = int(config.style.narration_ratio * 100)
         return f"""
 You are an expert radio dramatist creating a script in the style of {config.style.decade_flavor}.
 Write {config.style.scenes} scenes with {config.style.lines_per_scene} dialogue beats per scene.
+Approximately {narrator_pct}% of beats should be spoken by the Narrator; the rest by named characters.
 Use multiple speakers, strong narration, emotional delivery cues, and clean JSON output.
 Genre: {config.style.genre}
 Tone: {config.style.tone}

@@ -380,6 +380,22 @@
                     <label>Tone</label>
                     <input type="text" id="tone" value="suspenseful, theatrical, intimate">
                 </div>
+                <div class="form-group">
+                    <label>Narration Ratio <span id="ratioVal" style="color:var(--primary);font-weight:700;">0.25</span></label>
+                    <input type="range" id="narrationRatio" min="0" max="1" step="0.05" value="0.25"
+                        oninput="document.getElementById('ratioVal').textContent=parseFloat(this.value).toFixed(2)"
+                        style="width:100%;accent-color:var(--primary);">
+                </div>
+                <div class="form-group" style="grid-column:1/-1;display:flex;gap:1.5rem;align-items:center;padding:0.25rem 0;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;font-size:0.9rem;font-weight:500;color:var(--text);">
+                        <input type="checkbox" id="musicBeds" style="width:16px;height:16px;accent-color:var(--primary);">
+                        Music beds &amp; transitions
+                    </label>
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;font-size:0.9rem;font-weight:500;color:var(--text);">
+                        <input type="checkbox" id="soundEffects" style="width:16px;height:16px;accent-color:var(--primary);">
+                        Ambient sound effects
+                    </label>
+                </div>
             </div>
             <div class="actions">
                 <button id="produceBtn" onclick="produce()" disabled>Produce Radio Drama</button>
@@ -597,6 +613,9 @@
             form.append('renderer', document.getElementById('renderer').value);
             form.append('tts_preset', document.getElementById('ttsPreset').value);
             form.append('tone', document.getElementById('tone').value);
+            form.append('narration_ratio', document.getElementById('narrationRatio').value);
+            form.append('music_beds', document.getElementById('musicBeds').checked ? 'true' : 'false');
+            form.append('sound_effects', document.getElementById('soundEffects').checked ? 'true' : 'false');
 
             fill.style.width = '40%';
             var result = await apiCall('/api/produce', { method: 'POST', body: form });

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Drama Creator</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --primary: #e94560;
+            --accent: #0f3460;
+            --text: #eee;
+            --muted: #999;
+            --success: #4caf50;
+            --border: #2a2a4a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 2px solid var(--primary);
+            padding: 1.2rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 1.5rem; letter-spacing: 1px; }
+        header .health { font-size: 0.85rem; color: var(--muted); }
+        header .health .dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+        header .health .dot.ok { background: var(--success); }
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select, textarea {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.6rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        input[type="file"] { padding: 0.4rem; }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.secondary {
+            background: var(--accent);
+        }
+        .actions { display: flex; gap: 0.8rem; margin-top: 1rem; }
+        #log {
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #0f0;
+        }
+        .file-list { list-style: none; }
+        .file-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .file-list li:last-child { border-bottom: none; }
+        .file-list .fname { font-family: monospace; }
+        .file-list .fsize { color: var(--muted); font-size: 0.85rem; }
+        .file-list a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .hidden { display: none; }
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.5rem 1.2rem;
+            cursor: pointer;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .tab:first-child { border-radius: 4px 0 0 4px; }
+        .tab:last-child { border-radius: 0 4px 4px 0; }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .preview-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--muted);
+        }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Radio Drama Creator</h1>
+        <div class="health">
+            <span class="dot" id="healthDot"></span>
+            <span id="healthText">Checking...</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Upload -->
+        <div class="card">
+            <h2>1. Upload Source Document</h2>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Document File (.txt, .md, .pdf, .rtf, .doc, .docx, .epub)</label>
+                    <input type="file" id="fileInput" accept=".txt,.md,.pdf,.rtf,.doc,.docx,.epub">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="uploadBtn" onclick="uploadFile()">Upload</button>
+                <button class="secondary" id="extractBtn" onclick="extractText()" disabled>Extract Text</button>
+                <button class="secondary" id="metadataBtn" onclick="getMetadata()" disabled>Get Metadata</button>
+            </div>
+            <div id="uploadStatus" style="margin-top:0.5rem; font-size:0.85rem; color:var(--muted);"></div>
+            <div id="textPreview" class="preview-box hidden" style="margin-top:1rem;"></div>
+        </div>
+
+        <!-- Tabs: Produce / Characters -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('produce')">Produce Drama</div>
+            <div class="tab" onclick="switchTab('characters')">Identify Characters</div>
+        </div>
+
+        <!-- Produce -->
+        <div class="card" id="producePanel">
+            <h2>2. Configure Production</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Genre</label>
+                    <select id="genre">
+                        {% for g in genres %}
+                        <option value="{{ g }}">{{ g|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Scenes</label>
+                    <input type="number" id="scenes" value="3" min="1" max="20">
+                </div>
+                <div class="form-group">
+                    <label>Lines Per Scene</label>
+                    <input type="number" id="linesPerScene" value="8" min="2" max="30">
+                </div>
+                <div class="form-group">
+                    <label>Script Backend</label>
+                    <select id="scriptBackend">
+                        <option value="heuristic">Heuristic</option>
+                        <option value="mlx">MLX (Local LLM)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Script Model Preset</label>
+                    <select id="scriptPreset">
+                        {% for p in script_presets %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Renderer</label>
+                    <select id="renderer">
+                        {% for r in renderers %}
+                        <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>TTS Preset</label>
+                    <select id="ttsPreset">
+                        {% for p in tts_presets %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tone</label>
+                    <input type="text" id="tone" value="suspenseful, theatrical, intimate">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="produceBtn" onclick="produce()" disabled>Produce Radio Drama</button>
+            </div>
+        </div>
+
+        <!-- Characters -->
+        <div class="card hidden" id="charactersPanel">
+            <h2>Identify Characters (Audiobook Mode)</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Protagonist Name (optional)</label>
+                    <input type="text" id="protagonist" placeholder="e.g. Elizabeth Bennet">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="identifyBtn" onclick="identifyCharacters()" disabled>Identify Characters</button>
+            </div>
+            <div id="charResults" class="hidden" style="margin-top:1rem;">
+                <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Discovered Characters</h3>
+                <ul class="file-list" id="charList"></ul>
+            </div>
+        </div>
+
+        <!-- Log -->
+        <div class="card">
+            <h2>Log</h2>
+            <div id="log">Ready.\n</div>
+        </div>
+
+        <!-- Output Files -->
+        <div class="card hidden" id="outputPanel">
+            <h2>Output Files</h2>
+            <ul class="file-list" id="fileList"></ul>
+            <div class="actions" style="margin-top:1rem;">
+                <select id="convertFormat">
+                    <option value="mp3">MP3</option>
+                    <option value="wav">WAV</option>
+                    <option value="opus">OPUS</option>
+                    <option value="flac">FLAC</option>
+                    <option value="aac">AAC</option>
+                </select>
+                <button class="secondary" onclick="convertAudio()">Convert Audio</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFileId = null;
+        let currentJobId = null;
+
+        function log(msg) {
+            const el = document.getElementById('log');
+            el.textContent += msg + '\n';
+            el.scrollTop = el.scrollHeight;
+        }
+
+        // Health check
+        fetch('/api/health').then(r => r.json()).then(data => {
+            const dot = document.getElementById('healthDot');
+            const txt = document.getElementById('healthText');
+            if (data.status === 'ok') {
+                dot.classList.add('ok');
+                let extras = [];
+                if (data.calibre_installed) extras.push('Calibre');
+                if (data.ffmpeg_installed) extras.push('FFmpeg');
+                txt.textContent = 'System OK' + (extras.length ? ' | ' + extras.join(', ') : '');
+            } else {
+                txt.textContent = 'System issue';
+            }
+        }).catch(() => {
+            document.getElementById('healthText').textContent = 'Offline';
+        });
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (name === 'produce') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('producePanel').classList.remove('hidden');
+                document.getElementById('charactersPanel').classList.add('hidden');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('producePanel').classList.add('hidden');
+                document.getElementById('charactersPanel').classList.remove('hidden');
+            }
+        }
+
+        async function uploadFile() {
+            const input = document.getElementById('fileInput');
+            if (!input.files.length) { log('No file selected.'); return; }
+
+            const form = new FormData();
+            form.append('file', input.files[0]);
+            log('Uploading ' + input.files[0].name + '...');
+
+            try {
+                const resp = await fetch('/api/upload', { method: 'POST', body: form });
+                const data = await resp.json();
+                if (resp.ok) {
+                    currentFileId = data.file_id;
+                    log('Uploaded: ' + data.filename + ' (id: ' + data.file_id + ')');
+                    document.getElementById('uploadStatus').textContent = 'File ready: ' + data.filename;
+                    document.getElementById('produceBtn').disabled = false;
+                    document.getElementById('extractBtn').disabled = false;
+                    document.getElementById('metadataBtn').disabled = false;
+                    document.getElementById('identifyBtn').disabled = false;
+                } else {
+                    log('Upload failed: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                log('Upload error: ' + e.message);
+            }
+        }
+
+        async function extractText() {
+            if (!currentFileId) return;
+            log('Extracting text...');
+            const form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('method', 'native');
+            try {
+                const resp = await fetch('/api/extract-text', { method: 'POST', body: form });
+                const data = await resp.json();
+                if (resp.ok) {
+                    log('Extracted ' + data.char_count + ' characters.');
+                    const preview = document.getElementById('textPreview');
+                    preview.classList.remove('hidden');
+                    preview.textContent = data.preview;
+                } else {
+                    log('Extraction failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                log('Extraction error: ' + e.message);
+            }
+        }
+
+        async function getMetadata() {
+            if (!currentFileId) return;
+            log('Fetching metadata...');
+            try {
+                const resp = await fetch('/api/metadata/' + currentFileId);
+                const data = await resp.json();
+                log('Metadata: ' + JSON.stringify(data, null, 2));
+            } catch (e) {
+                log('Metadata error: ' + e.message);
+            }
+        }
+
+        async function produce() {
+            if (!currentFileId) return;
+            const btn = document.getElementById('produceBtn');
+            btn.disabled = true;
+            btn.textContent = 'Producing...';
+            log('Starting production...');
+
+            const form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('genre', document.getElementById('genre').value);
+            form.append('scenes', document.getElementById('scenes').value);
+            form.append('lines_per_scene', document.getElementById('linesPerScene').value);
+            form.append('script_backend', document.getElementById('scriptBackend').value);
+            form.append('script_preset', document.getElementById('scriptPreset').value);
+            form.append('renderer', document.getElementById('renderer').value);
+            form.append('tts_preset', document.getElementById('ttsPreset').value);
+            form.append('tone', document.getElementById('tone').value);
+
+            try {
+                const resp = await fetch('/api/produce', { method: 'POST', body: form });
+                const data = await resp.json();
+                if (resp.ok) {
+                    currentJobId = data.job_id;
+                    log('Production complete! Job ID: ' + data.job_id);
+                    loadOutputFiles();
+                } else {
+                    log('Production failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                log('Production error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Produce Radio Drama';
+            }
+        }
+
+        async function loadOutputFiles() {
+            if (!currentJobId) return;
+            try {
+                const resp = await fetch('/api/jobs/' + currentJobId + '/files');
+                const data = await resp.json();
+                const panel = document.getElementById('outputPanel');
+                const list = document.getElementById('fileList');
+                panel.classList.remove('hidden');
+                list.innerHTML = '';
+                for (const f of data.files) {
+                    const li = document.createElement('li');
+                    const sizeKb = (f.size / 1024).toFixed(1);
+                    li.innerHTML = '<span class="fname">' + f.name + '</span>' +
+                        '<span class="fsize">' + sizeKb + ' KB</span>' +
+                        '<a href="/api/jobs/' + currentJobId + '/download/' + f.name +
+                        '" target="_blank">Download</a>';
+                    list.appendChild(li);
+                }
+            } catch (e) {
+                log('Error loading files: ' + e.message);
+            }
+        }
+
+        async function convertAudio() {
+            if (!currentJobId) return;
+            const fmt = document.getElementById('convertFormat').value;
+            const form = new FormData();
+            form.append('job_id', currentJobId);
+            form.append('filename', 'radio_drama.wav');
+            form.append('output_format', fmt);
+            log('Converting to ' + fmt + '...');
+            try {
+                const resp = await fetch('/api/convert', { method: 'POST', body: form });
+                const data = await resp.json();
+                if (resp.ok) {
+                    log('Converted: ' + data.converted);
+                    loadOutputFiles();
+                } else {
+                    log('Conversion failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                log('Conversion error: ' + e.message);
+            }
+        }
+
+        async function identifyCharacters() {
+            if (!currentFileId) return;
+            log('Identifying characters...');
+            const form = new FormData();
+            form.append('file_id', currentFileId);
+            form.append('protagonist', document.getElementById('protagonist').value);
+            try {
+                const resp = await fetch('/api/identify-characters', { method: 'POST', body: form });
+                const data = await resp.json();
+                if (resp.ok) {
+                    for (const msg of (data.messages || [])) log(msg);
+                    const panel = document.getElementById('charResults');
+                    const list = document.getElementById('charList');
+                    panel.classList.remove('hidden');
+                    list.innerHTML = '';
+                    for (const c of (data.characters || [])) {
+                        const li = document.createElement('li');
+                        li.innerHTML = '<span class="fname">' + c.name + '</span>' +
+                            '<span class="fsize">' + (c.gender || '?') + ', age ~' + (c.age || '?') + '</span>';
+                        list.appendChild(li);
+                    }
+                } else {
+                    log('Character ID failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                log('Character ID error: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

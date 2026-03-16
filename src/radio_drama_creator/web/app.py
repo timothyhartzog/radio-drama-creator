@@ -6,7 +6,9 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import tempfile
+import threading
 import traceback
 import uuid
 from pathlib import Path
@@ -511,6 +513,334 @@ async def delete_model_endpoint(repo_id: str = Form(...)):
     if result["status"] == "error":
         raise HTTPException(status_code=422, detail=result["detail"])
     return result
+
+
+# ---------------------------------------------------------------------------
+# Fine-Tuning (LoRA)
+# ---------------------------------------------------------------------------
+
+FINETUNE_DIR = Path(tempfile.gettempdir()) / "radio_drama_finetune"
+FINETUNE_DIR.mkdir(parents=True, exist_ok=True)
+
+_finetune_jobs: dict[str, dict] = {}
+
+
+@app.get("/finetune", response_class=HTMLResponse)
+async def finetune_page(request: Request):
+    """Fine-tuning workflow page."""
+    presets = available_model_presets()
+    return templates.TemplateResponse("finetune.html", {
+        "request": request,
+        "script_presets": [
+            {"key": p.key, "repo": p.repo, "notes": p.notes}
+            for p in presets.get("script", [])
+        ],
+    })
+
+
+@app.post("/api/finetune/upload-data")
+async def finetune_upload_data(file: UploadFile = File(...)):
+    """Upload a training JSONL file for fine-tuning."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file selected.")
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in {".jsonl", ".json"}:
+        raise HTTPException(status_code=400, detail="Only .jsonl or .json files are accepted.")
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="File is empty.")
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File exceeds 100 MB limit.")
+
+    # Validate JSONL structure
+    lines = content.decode("utf-8", errors="replace").strip().splitlines()
+    valid_count = 0
+    for i, line in enumerate(lines[:5]):
+        try:
+            obj = json.loads(line)
+            if "messages" in obj or "text" in obj or ("prompt" in obj and "completion" in obj):
+                valid_count += 1
+            else:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Line {i+1}: Expected 'messages', 'text', or 'prompt'+'completion' keys.",
+                )
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=422, detail=f"Line {i+1}: Invalid JSON — {exc}")
+
+    if valid_count == 0:
+        raise HTTPException(status_code=422, detail="No valid training examples found.")
+
+    data_id = uuid.uuid4().hex[:12]
+    data_dir = FINETUNE_DIR / data_id
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Split: 90% train, 10% valid
+    split_idx = max(1, int(len(lines) * 0.9))
+    (data_dir / "train.jsonl").write_text("\n".join(lines[:split_idx]) + "\n", encoding="utf-8")
+    (data_dir / "valid.jsonl").write_text("\n".join(lines[split_idx:]) + "\n", encoding="utf-8")
+
+    return {
+        "data_id": data_id,
+        "total_examples": len(lines),
+        "train_examples": split_idx,
+        "valid_examples": len(lines) - split_idx,
+        "data_dir": str(data_dir),
+    }
+
+
+@app.post("/api/finetune/start")
+async def finetune_start(
+    data_id: str = Form(...),
+    base_model: str = Form("mlx-community/Qwen3-8B-4bit"),
+    adapter_name: str = Form("radio_drama"),
+    lora_rank: int = Form(16),
+    iterations: int = Form(600),
+    batch_size: int = Form(2),
+    learning_rate: float = Form(1e-5),
+    num_layers: int = Form(16),
+    mask_prompt: bool = Form(True),
+    grad_checkpoint: bool = Form(True),
+):
+    """Start a LoRA fine-tuning job using mlx_lm.lora."""
+    # Validate data_id
+    if not data_id or not data_id.isalnum():
+        raise HTTPException(status_code=400, detail="Invalid data ID.")
+    data_dir = FINETUNE_DIR / data_id
+    if not (data_dir / "train.jsonl").exists():
+        raise HTTPException(status_code=404, detail="Training data not found. Upload data first.")
+
+    # Validate params
+    lora_rank = max(4, min(lora_rank, 64))
+    iterations = max(10, min(iterations, 5000))
+    batch_size = max(1, min(batch_size, 16))
+    num_layers = max(4, min(num_layers, 32))
+    learning_rate = max(1e-7, min(learning_rate, 1e-3))
+    if not base_model or len(base_model) > 200:
+        raise HTTPException(status_code=400, detail="Invalid base model.")
+
+    # Sanitize adapter name
+    adapter_name = "".join(c for c in adapter_name if c.isalnum() or c in "_-")[:50] or "adapter"
+    adapter_path = FINETUNE_DIR / "adapters" / adapter_name
+    adapter_path.mkdir(parents=True, exist_ok=True)
+
+    job_id = uuid.uuid4().hex[:12]
+    log_path = FINETUNE_DIR / f"{job_id}.log"
+
+    cmd = [
+        "mlx_lm.lora",
+        "--model", base_model,
+        "--data", str(data_dir),
+        "--train",
+        "--batch-size", str(batch_size),
+        "--iters", str(iterations),
+        "--num-layers", str(num_layers),
+        "--learning-rate", str(learning_rate),
+        "--lora-rank", str(lora_rank),
+        "--adapter-path", str(adapter_path),
+    ]
+    if mask_prompt:
+        cmd.append("--mask-prompt")
+    if grad_checkpoint:
+        cmd.append("--grad-checkpoint")
+
+    _finetune_jobs[job_id] = {
+        "status": "running",
+        "base_model": base_model,
+        "adapter_name": adapter_name,
+        "adapter_path": str(adapter_path),
+        "data_id": data_id,
+        "config": {
+            "lora_rank": lora_rank,
+            "iterations": iterations,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
+            "num_layers": num_layers,
+            "mask_prompt": mask_prompt,
+            "grad_checkpoint": grad_checkpoint,
+        },
+        "log_path": str(log_path),
+        "log_lines": [],
+        "loss_history": [],
+    }
+
+    def _run_training():
+        try:
+            with open(log_path, "w") as log_file:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                for line in proc.stdout:
+                    line = line.rstrip("\n")
+                    log_file.write(line + "\n")
+                    log_file.flush()
+                    job = _finetune_jobs[job_id]
+                    job["log_lines"].append(line)
+                    # Keep last 200 lines in memory
+                    if len(job["log_lines"]) > 200:
+                        job["log_lines"] = job["log_lines"][-200:]
+                    # Parse loss values from mlx_lm output
+                    if "train loss" in line.lower() or "val loss" in line.lower():
+                        job["loss_history"].append(line)
+
+                proc.wait()
+                if proc.returncode == 0:
+                    _finetune_jobs[job_id]["status"] = "complete"
+                else:
+                    _finetune_jobs[job_id]["status"] = "error"
+                    _finetune_jobs[job_id]["error"] = f"Process exited with code {proc.returncode}"
+        except FileNotFoundError:
+            _finetune_jobs[job_id]["status"] = "error"
+            _finetune_jobs[job_id]["error"] = (
+                "mlx_lm not installed. Run: pip install mlx-lm"
+            )
+        except Exception as exc:
+            _finetune_jobs[job_id]["status"] = "error"
+            _finetune_jobs[job_id]["error"] = str(exc)
+
+    thread = threading.Thread(target=_run_training, daemon=True)
+    thread.start()
+
+    return {"job_id": job_id, "status": "running", "adapter_path": str(adapter_path)}
+
+
+@app.get("/api/finetune/status/{job_id}")
+async def finetune_status(job_id: str):
+    """Get the status and logs of a fine-tuning job."""
+    if not job_id or not job_id.isalnum():
+        raise HTTPException(status_code=400, detail="Invalid job ID.")
+    if job_id not in _finetune_jobs:
+        raise HTTPException(status_code=404, detail="Fine-tuning job not found.")
+    job = _finetune_jobs[job_id]
+    return {
+        "status": job["status"],
+        "base_model": job["base_model"],
+        "adapter_name": job["adapter_name"],
+        "adapter_path": job["adapter_path"],
+        "config": job["config"],
+        "log_lines": job["log_lines"][-50:],
+        "loss_history": job["loss_history"],
+        "error": job.get("error"),
+    }
+
+
+@app.get("/api/finetune/adapters")
+async def list_adapters():
+    """List available LoRA adapters."""
+    adapters_dir = FINETUNE_DIR / "adapters"
+    if not adapters_dir.exists():
+        return {"adapters": []}
+    adapters = []
+    for d in sorted(adapters_dir.iterdir()):
+        if d.is_dir():
+            files = list(d.iterdir())
+            size_bytes = sum(f.stat().st_size for f in files if f.is_file())
+            has_weights = any(f.suffix == ".safetensors" for f in files)
+            adapters.append({
+                "name": d.name,
+                "path": str(d),
+                "files": len(files),
+                "size_mb": round(size_bytes / (1024 * 1024), 1),
+                "has_weights": has_weights,
+            })
+    return {"adapters": adapters}
+
+
+@app.post("/api/finetune/test")
+async def finetune_test(
+    base_model: str = Form(...),
+    adapter_path: str = Form(...),
+    prompt: str = Form(...),
+    max_tokens: int = Form(512),
+):
+    """Test a LoRA adapter by generating text."""
+    if not prompt or len(prompt) > 2000:
+        raise HTTPException(status_code=400, detail="Prompt must be 1-2000 characters.")
+    max_tokens = max(16, min(max_tokens, 2048))
+
+    # Validate adapter_path is within our finetune directory
+    adapter = Path(adapter_path)
+    try:
+        adapter.resolve().relative_to(FINETUNE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid adapter path.")
+    if not adapter.exists():
+        raise HTTPException(status_code=404, detail="Adapter not found.")
+
+    cmd = [
+        "mlx_lm.generate",
+        "--model", base_model,
+        "--adapter-path", str(adapter),
+        "--prompt", prompt,
+        "--max-tokens", str(max_tokens),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Generation failed: {result.stderr[:500]}",
+            )
+        return {"output": result.stdout, "adapter_path": str(adapter)}
+    except FileNotFoundError:
+        raise HTTPException(status_code=422, detail="mlx_lm not installed. Run: pip install mlx-lm")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Generation timed out (120s limit).")
+
+
+@app.post("/api/finetune/fuse")
+async def finetune_fuse(
+    base_model: str = Form(...),
+    adapter_path: str = Form(...),
+    output_name: str = Form("fused_model"),
+):
+    """Fuse a LoRA adapter permanently into the base model."""
+    adapter = Path(adapter_path)
+    try:
+        adapter.resolve().relative_to(FINETUNE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid adapter path.")
+    if not adapter.exists():
+        raise HTTPException(status_code=404, detail="Adapter not found.")
+
+    output_name = "".join(c for c in output_name if c.isalnum() or c in "_-")[:50] or "fused_model"
+    save_path = FINETUNE_DIR / "fused" / output_name
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "mlx_lm.fuse",
+        "--model", base_model,
+        "--adapter-path", str(adapter),
+        "--save-path", str(save_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=600,
+        )
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Fuse failed: {result.stderr[:500]}",
+            )
+        return {
+            "status": "fused",
+            "save_path": str(save_path),
+            "output": result.stdout[:500],
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=422, detail="mlx_lm not installed. Run: pip install mlx-lm")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Fuse timed out (10 min limit).")
 
 
 def create_app() -> FastAPI:

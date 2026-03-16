@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fine-Tune - Radio Drama Creator</title>
+    <style>
+        :root {
+            --bg: #f1f5f9; --surface: #ffffff; --primary: #2563eb; --primary-hover: #1d4ed8;
+            --text: #1e293b; --muted: #64748b; --success: #16a34a; --danger: #dc2626;
+            --warning: #d97706; --border: #e2e8f0; --accent: #e0e7ff;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+        header h1 { font-size: 1.3rem; color: var(--primary); }
+        nav { display: flex; gap: 1.2rem; font-size: 0.85rem; }
+        nav a { color: var(--muted); text-decoration: none; font-weight: 500; }
+        nav a:hover, nav a.active { color: var(--primary); }
+        .container { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem; }
+
+        .section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.2rem; box-shadow: var(--shadow); overflow: hidden; }
+        .section-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .section-header h2 { font-size: 0.95rem; font-weight: 600; }
+        .section-header .badge { padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .section-body { padding: 1.2rem; }
+
+        .step-indicator { display: flex; gap: 0; margin-bottom: 1.2rem; }
+        .step { flex: 1; text-align: center; padding: 0.6rem 0.4rem; background: var(--bg); border: 1px solid var(--border); font-size: 0.78rem; font-weight: 600; color: var(--muted); position: relative; }
+        .step:first-child { border-radius: 8px 0 0 8px; }
+        .step:last-child { border-radius: 0 8px 8px 0; }
+        .step.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .step.done { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+        .step .num { display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.3); line-height: 18px; font-size: 0.7rem; margin-right: 4px; }
+        .step.active .num { background: rgba(255,255,255,0.3); }
+        .step.done .num { background: var(--success); color: white; }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text); }
+        .form-group .hint { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%; padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 0.85rem; background: var(--bg); font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+        input[type="file"] { font-size: 0.85rem; }
+        .file-drop {
+            border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;
+            color: var(--muted); font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
+        }
+        .file-drop:hover, .file-drop.dragover { border-color: var(--primary); background: var(--accent); }
+
+        button { font-family: inherit; cursor: pointer; border: none; border-radius: 5px; font-size: 0.8rem; font-weight: 500; padding: 0.4rem 1rem; transition: all 0.15s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: #15803d; }
+        .btn-danger { background: white; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover:not(:disabled) { background: #fef2f2; }
+        .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover:not(:disabled) { background: var(--border); }
+
+        .log-box {
+            background: #0f172a; color: #e2e8f0; font-family: 'SF Mono', Consolas, monospace;
+            font-size: 0.75rem; padding: 0.8rem; border-radius: 6px; max-height: 300px;
+            overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.6;
+        }
+        .log-box .loss { color: #4ade80; }
+        .log-box .error { color: #f87171; }
+        .log-box .info { color: #60a5fa; }
+
+        .chart-container { position: relative; height: 200px; margin: 1rem 0; }
+        .chart-canvas { width: 100%; height: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+
+        .adapter-card {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.7rem 1rem; border-bottom: 1px solid var(--border);
+        }
+        .adapter-card:last-child { border-bottom: none; }
+        .adapter-card:hover { background: #f8fafc; }
+        .adapter-info .name { font-weight: 600; font-size: 0.85rem; }
+        .adapter-info .meta { font-size: 0.75rem; color: var(--muted); }
+        .adapter-actions { display: flex; gap: 0.4rem; }
+
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+        .status-badge.running { background: #fef3c7; color: #92400e; }
+        .status-badge.complete { background: #dcfce7; color: #166534; }
+        .status-badge.error { background: #fecaca; color: #991b1b; }
+
+        .hidden { display: none; }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 4px; }
+        .spinner.dark { border-color: rgba(0,0,0,0.1); border-top-color: var(--primary); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 200; animation: slideIn 0.3s ease; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .checkbox-row { display: flex; align-items: center; gap: 0.5rem; }
+        .checkbox-row input[type="checkbox"] { width: auto; }
+
+        @media (max-width: 700px) {
+            .form-row, .form-row-3 { grid-template-columns: 1fr; }
+            .step-indicator { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Fine-Tune Studio</h1>
+        <nav>
+            <a href="/">Producer</a>
+            <a href="/models">Models</a>
+            <a href="/finetune" class="active">Fine-Tune</a>
+            <a href="/catalog">Catalog</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1"><span class="num">1</span>Upload Data</div>
+            <div class="step" id="step2"><span class="num">2</span>Configure</div>
+            <div class="step" id="step3"><span class="num">3</span>Train</div>
+            <div class="step" id="step4"><span class="num">4</span>Test</div>
+            <div class="step" id="step5"><span class="num">5</span>Fuse</div>
+        </div>
+
+        <!-- Step 1: Upload Training Data -->
+        <div class="section" id="panel1">
+            <div class="section-header">
+                <h2>Upload Training Data</h2>
+                <span class="badge" style="background:var(--accent);color:var(--primary);">JSONL</span>
+            </div>
+            <div class="section-body">
+                <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
+                    Drop a <strong>.jsonl</strong> file here, or click to browse.<br>
+                    <span style="font-size:0.75rem;">Chat format: {"messages": [...]} &mdash; one example per line</span>
+                </div>
+                <input type="file" id="fileInput" accept=".jsonl,.json" class="hidden" onchange="uploadData(this)">
+                <div id="uploadResult" class="hidden" style="margin-top:0.8rem; padding:0.6rem; background:#dcfce7; border-radius:6px; font-size:0.82rem; color:#166534;"></div>
+            </div>
+        </div>
+
+        <!-- Step 2: Configure -->
+        <div class="section" id="panel2">
+            <div class="section-header">
+                <h2>Configure LoRA Training</h2>
+                <span class="badge" style="background:#fef3c7;color:#92400e;">Config</span>
+            </div>
+            <div class="section-body">
+                <div class="form-row" style="margin-bottom:1rem;">
+                    <div class="form-group">
+                        <label>Base Model</label>
+                        <select id="cfgBaseModel">
+                            {% for p in script_presets %}
+                            <option value="{{ p.repo }}" {{ 'selected' if p.key == 'qwen3-8b' else '' }}>{{ p.key }} &mdash; {{ p.repo }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="hint">Model to fine-tune. Must be HuggingFace safetensors format.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Adapter Name</label>
+                        <input type="text" id="cfgAdapterName" value="radio_drama" placeholder="e.g. biblical_drama">
+                        <div class="hint">Name for the LoRA adapter output directory.</div>
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>LoRA Rank</label>
+                        <select id="cfgLoraRank">
+                            <option value="8">8 (smaller, faster)</option>
+                            <option value="16" selected>16 (recommended)</option>
+                            <option value="32">32 (higher quality)</option>
+                            <option value="64">64 (max quality, slow)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Iterations</label>
+                        <input type="number" id="cfgIters" value="600" min="10" max="5000" step="50">
+                        <div class="hint">Training steps. 300-1000 typical.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Batch Size</label>
+                        <select id="cfgBatchSize">
+                            <option value="1">1 (lowest memory)</option>
+                            <option value="2" selected>2 (recommended)</option>
+                            <option value="4">4 (faster, more RAM)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Learning Rate</label>
+                        <select id="cfgLR">
+                            <option value="0.000005">5e-6 (conservative)</option>
+                            <option value="0.00001" selected>1e-5 (default)</option>
+                            <option value="0.00002">2e-5 (aggressive)</option>
+                            <option value="0.00005">5e-5 (very aggressive)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Num Layers</label>
+                        <input type="number" id="cfgNumLayers" value="16" min="4" max="32" step="4">
+                        <div class="hint">Layers to apply LoRA. More = better but slower.</div>
+                    </div>
+                    <div class="form-group" style="display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding-top:1.2rem;">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgMaskPrompt" checked>
+                            <label for="cfgMaskPrompt" style="font-size:0.8rem; margin-bottom:0;">Mask Prompt</label>
+                        </div>
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgGradCheckpoint" checked>
+                            <label for="cfgGradCheckpoint" style="font-size:0.8rem; margin-bottom:0;">Grad Checkpoint</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="btnStartTraining" onclick="startTraining()" disabled style="margin-top:0.5rem;">
+                    Start Fine-Tuning
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Training Progress -->
+        <div class="section" id="panel3">
+            <div class="section-header">
+                <h2>Training Progress</h2>
+                <span class="status-badge" id="trainStatus" style="display:none;">--</span>
+            </div>
+            <div class="section-body">
+                <div id="trainIdle" style="text-align:center; color:var(--muted); font-size:0.85rem; padding:1rem;">
+                    No training job running. Upload data and start training above.
+                </div>
+                <div id="trainProgress" class="hidden">
+                    <!-- Loss Chart -->
+                    <div class="chart-container">
+                        <canvas id="lossChart" class="chart-canvas"></canvas>
+                    </div>
+                    <!-- Log Output -->
+                    <div class="log-box" id="trainLog">Waiting for output...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Test Adapter -->
+        <div class="section" id="panel4">
+            <div class="section-header">
+                <h2>Test Adapter</h2>
+                <span class="badge" style="background:var(--accent);color:var(--primary);">Generate</span>
+            </div>
+            <div class="section-body">
+                <div class="form-group">
+                    <label>Select Adapter</label>
+                    <select id="testAdapter">
+                        <option value="">-- Load adapters --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Prompt</label>
+                    <textarea id="testPrompt" rows="3" placeholder="Convert this passage into a radio drama scene: The morning sun broke through the clouds as the shepherd led his flock down the hillside."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Max Tokens</label>
+                        <input type="number" id="testMaxTokens" value="512" min="16" max="2048" step="64">
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                        <button class="btn-primary" id="btnTest" onclick="testAdapter()">Generate</button>
+                    </div>
+                </div>
+                <div id="testOutput" class="hidden" style="margin-top:0.8rem;">
+                    <label style="font-size:0.8rem; font-weight:600; margin-bottom:0.3rem; display:block;">Output</label>
+                    <div class="log-box" id="testOutputBox" style="background:#1e293b; max-height:400px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Fuse Adapter -->
+        <div class="section" id="panel5">
+            <div class="section-header">
+                <h2>Fuse Adapter into Model</h2>
+                <span class="badge" style="background:#fce7f3;color:#9d174d;">Permanent</span>
+            </div>
+            <div class="section-body">
+                <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">
+                    Fusing permanently merges the LoRA adapter into the base model weights, creating a standalone model.
+                    The adapter files remain unchanged.
+                </p>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Adapter to Fuse</label>
+                        <select id="fuseAdapter">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Output Name</label>
+                        <input type="text" id="fuseName" value="fused_model" placeholder="e.g. biblical-drama-qwen3">
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                        <button class="btn-success" id="btnFuse" onclick="fuseAdapter()">Fuse Model</button>
+                    </div>
+                </div>
+                <div id="fuseResult" class="hidden" style="margin-top:0.8rem; padding:0.6rem; background:#dcfce7; border-radius:6px; font-size:0.82rem; color:#166534;"></div>
+            </div>
+        </div>
+
+        <!-- Existing Adapters -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Saved Adapters</h2>
+                <button class="btn-secondary" onclick="loadAdapters()" style="font-size:0.75rem;">Refresh</button>
+            </div>
+            <div id="adapterList">
+                <div style="padding:1rem; text-align:center; color:var(--muted); font-size:0.85rem;">
+                    <span class="spinner dark"></span> Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        var currentDataId = null;
+        var currentJobId = null;
+        var pollTimer = null;
+
+        function toast(msg, type) {
+            var div = document.createElement('div');
+            div.className = 'toast ' + (type || 'success');
+            div.textContent = msg;
+            document.getElementById('toastContainer').appendChild(div);
+            setTimeout(function() { div.remove(); }, 4000);
+        }
+
+        function setStep(n) {
+            for (var i = 1; i <= 5; i++) {
+                var el = document.getElementById('step' + i);
+                el.className = 'step' + (i < n ? ' done' : (i === n ? ' active' : ''));
+            }
+        }
+
+        // --- Drag & Drop ---
+        var dropZone = document.getElementById('fileDrop');
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                document.getElementById('fileInput').files = e.dataTransfer.files;
+                uploadData(document.getElementById('fileInput'));
+            }
+        });
+
+        // --- Upload ---
+        async function uploadData(input) {
+            if (!input.files.length) return;
+            var form = new FormData();
+            form.append('file', input.files[0]);
+            toast('Uploading training data...', 'warning');
+            try {
+                var resp = await fetch('/api/finetune/upload-data', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (!resp.ok) { toast(data.detail || 'Upload failed', 'error'); return; }
+                currentDataId = data.data_id;
+                var resultEl = document.getElementById('uploadResult');
+                resultEl.innerHTML = 'Uploaded <strong>' + data.total_examples + '</strong> examples (' +
+                    data.train_examples + ' train / ' + data.valid_examples + ' valid). Data ID: <code>' + data.data_id + '</code>';
+                resultEl.classList.remove('hidden');
+                document.getElementById('btnStartTraining').disabled = false;
+                setStep(2);
+                toast('Data uploaded: ' + data.total_examples + ' examples', 'success');
+            } catch (e) {
+                toast('Upload error: ' + e.message, 'error');
+            }
+        }
+
+        // --- Start Training ---
+        async function startTraining() {
+            if (!currentDataId) { toast('Upload training data first', 'warning'); return; }
+            var btn = document.getElementById('btnStartTraining');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Starting...';
+
+            var form = new FormData();
+            form.append('data_id', currentDataId);
+            form.append('base_model', document.getElementById('cfgBaseModel').value);
+            form.append('adapter_name', document.getElementById('cfgAdapterName').value);
+            form.append('lora_rank', document.getElementById('cfgLoraRank').value);
+            form.append('iterations', document.getElementById('cfgIters').value);
+            form.append('batch_size', document.getElementById('cfgBatchSize').value);
+            form.append('learning_rate', document.getElementById('cfgLR').value);
+            form.append('num_layers', document.getElementById('cfgNumLayers').value);
+            form.append('mask_prompt', document.getElementById('cfgMaskPrompt').checked);
+            form.append('grad_checkpoint', document.getElementById('cfgGradCheckpoint').checked);
+
+            try {
+                var resp = await fetch('/api/finetune/start', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (!resp.ok) {
+                    toast(data.detail || 'Start failed', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Start Fine-Tuning';
+                    return;
+                }
+                currentJobId = data.job_id;
+                setStep(3);
+                document.getElementById('trainIdle').classList.add('hidden');
+                document.getElementById('trainProgress').classList.remove('hidden');
+                var statusBadge = document.getElementById('trainStatus');
+                statusBadge.textContent = 'Running';
+                statusBadge.className = 'status-badge running';
+                statusBadge.style.display = '';
+                toast('Training started!', 'success');
+                btn.textContent = 'Training in progress...';
+                startPolling();
+            } catch (e) {
+                toast('Start error: ' + e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Start Fine-Tuning';
+            }
+        }
+
+        // --- Poll Training Status ---
+        function startPolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(pollStatus, 2000);
+        }
+
+        async function pollStatus() {
+            if (!currentJobId) return;
+            try {
+                var resp = await fetch('/api/finetune/status/' + currentJobId);
+                var data = await resp.json();
+
+                // Update log
+                var logEl = document.getElementById('trainLog');
+                logEl.innerHTML = '';
+                (data.log_lines || []).forEach(function(line) {
+                    var span = document.createElement('span');
+                    if (line.toLowerCase().includes('loss')) {
+                        span.className = 'loss';
+                    } else if (line.toLowerCase().includes('error') || line.toLowerCase().includes('traceback')) {
+                        span.className = 'error';
+                    } else {
+                        span.className = 'info';
+                    }
+                    span.textContent = line + '\n';
+                    logEl.appendChild(span);
+                });
+                logEl.scrollTop = logEl.scrollHeight;
+
+                // Draw loss chart
+                drawLossChart(data.loss_history || []);
+
+                // Update status
+                var statusBadge = document.getElementById('trainStatus');
+                if (data.status === 'complete') {
+                    clearInterval(pollTimer);
+                    statusBadge.textContent = 'Complete';
+                    statusBadge.className = 'status-badge complete';
+                    setStep(4);
+                    toast('Training complete!', 'success');
+                    document.getElementById('btnStartTraining').textContent = 'Start Fine-Tuning';
+                    document.getElementById('btnStartTraining').disabled = false;
+                    loadAdapters();
+                } else if (data.status === 'error') {
+                    clearInterval(pollTimer);
+                    statusBadge.textContent = 'Error';
+                    statusBadge.className = 'status-badge error';
+                    toast('Training failed: ' + (data.error || 'Unknown error'), 'error');
+                    document.getElementById('btnStartTraining').textContent = 'Start Fine-Tuning';
+                    document.getElementById('btnStartTraining').disabled = false;
+                }
+            } catch (e) {
+                // Ignore transient errors during polling
+            }
+        }
+
+        // --- Simple Loss Chart (canvas-based, no dependencies) ---
+        function drawLossChart(lossLines) {
+            var canvas = document.getElementById('lossChart');
+            if (!canvas || !lossLines.length) return;
+            var ctx = canvas.getContext('2d');
+            var w = canvas.width = canvas.offsetWidth;
+            var h = canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            // Parse loss values
+            var trainLosses = [];
+            var valLosses = [];
+            lossLines.forEach(function(line) {
+                var match;
+                if ((match = line.match(/train loss[:\s]*([\d.]+)/i))) {
+                    trainLosses.push(parseFloat(match[1]));
+                }
+                if ((match = line.match(/val loss[:\s]*([\d.]+)/i))) {
+                    valLosses.push(parseFloat(match[1]));
+                }
+            });
+
+            if (!trainLosses.length) return;
+
+            var all = trainLosses.concat(valLosses);
+            var minVal = Math.min.apply(null, all) * 0.9;
+            var maxVal = Math.max.apply(null, all) * 1.1;
+            var range = maxVal - minVal || 1;
+
+            var pad = { top: 20, right: 20, bottom: 30, left: 50 };
+            var cw = w - pad.left - pad.right;
+            var ch = h - pad.top - pad.bottom;
+
+            // Grid
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            for (var i = 0; i <= 4; i++) {
+                var y = pad.top + (ch * i / 4);
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+                ctx.fillText((maxVal - (range * i / 4)).toFixed(3), pad.left - 5, y + 3);
+            }
+
+            // Draw line
+            function drawLine(data, color) {
+                if (data.length < 2) return;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                data.forEach(function(val, idx) {
+                    var x = pad.left + (cw * idx / (data.length - 1));
+                    var y = pad.top + ch - ((val - minVal) / range * ch);
+                    if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            drawLine(trainLosses, '#2563eb');
+            drawLine(valLosses, '#16a34a');
+
+            // Legend
+            ctx.font = '11px sans-serif';
+            ctx.fillStyle = '#2563eb'; ctx.fillText('Train', pad.left + 10, pad.top + 12);
+            ctx.fillStyle = '#16a34a'; ctx.fillText('Val', pad.left + 55, pad.top + 12);
+            ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('Steps', w / 2, h - 5);
+        }
+
+        // --- Load Adapters ---
+        async function loadAdapters() {
+            try {
+                var resp = await fetch('/api/finetune/adapters');
+                var data = await resp.json();
+                var list = document.getElementById('adapterList');
+                var testSel = document.getElementById('testAdapter');
+                var fuseSel = document.getElementById('fuseAdapter');
+
+                // Clear selects
+                testSel.innerHTML = '<option value="">-- Select adapter --</option>';
+                fuseSel.innerHTML = '<option value="">-- Select adapter --</option>';
+
+                if (!data.adapters || !data.adapters.length) {
+                    list.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.85rem;">No adapters saved yet. Train one above.</div>';
+                    return;
+                }
+
+                list.innerHTML = data.adapters.map(function(a) {
+                    var status = a.has_weights
+                        ? '<span class="status-badge complete">Ready</span>'
+                        : '<span class="status-badge running">In Progress</span>';
+                    return '<div class="adapter-card">' +
+                        '<div class="adapter-info">' +
+                            '<div class="name">' + a.name + ' ' + status + '</div>' +
+                            '<div class="meta">' + a.files + ' files, ' + a.size_mb + ' MB — ' + a.path + '</div>' +
+                        '</div>' +
+                        '</div>';
+                }).join('');
+
+                data.adapters.forEach(function(a) {
+                    if (a.has_weights) {
+                        var opt1 = document.createElement('option');
+                        opt1.value = a.path; opt1.textContent = a.name + ' (' + a.size_mb + ' MB)';
+                        testSel.appendChild(opt1);
+                        var opt2 = document.createElement('option');
+                        opt2.value = a.path; opt2.textContent = a.name + ' (' + a.size_mb + ' MB)';
+                        fuseSel.appendChild(opt2);
+                    }
+                });
+            } catch (e) {
+                document.getElementById('adapterList').innerHTML =
+                    '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.85rem;">Could not load adapters.</div>';
+            }
+        }
+
+        // --- Test Adapter ---
+        async function testAdapter() {
+            var adapterPath = document.getElementById('testAdapter').value;
+            var prompt = document.getElementById('testPrompt').value.trim();
+            if (!adapterPath) { toast('Select an adapter', 'warning'); return; }
+            if (!prompt) { toast('Enter a prompt', 'warning'); return; }
+
+            var btn = document.getElementById('btnTest');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+            var form = new FormData();
+            form.append('base_model', document.getElementById('cfgBaseModel').value);
+            form.append('adapter_path', adapterPath);
+            form.append('prompt', prompt);
+            form.append('max_tokens', document.getElementById('testMaxTokens').value);
+
+            try {
+                var resp = await fetch('/api/finetune/test', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (!resp.ok) {
+                    toast(data.detail || 'Generation failed', 'error');
+                } else {
+                    document.getElementById('testOutput').classList.remove('hidden');
+                    document.getElementById('testOutputBox').textContent = data.output;
+                    toast('Generated!', 'success');
+                }
+            } catch (e) {
+                toast('Test error: ' + e.message, 'error');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Generate';
+        }
+
+        // --- Fuse Adapter ---
+        async function fuseAdapter() {
+            var adapterPath = document.getElementById('fuseAdapter').value;
+            var outputName = document.getElementById('fuseName').value.trim();
+            if (!adapterPath) { toast('Select an adapter to fuse', 'warning'); return; }
+            if (!outputName) { toast('Enter an output name', 'warning'); return; }
+
+            var btn = document.getElementById('btnFuse');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Fusing...';
+            toast('Fusing adapter — this may take a few minutes...', 'warning');
+
+            var form = new FormData();
+            form.append('base_model', document.getElementById('cfgBaseModel').value);
+            form.append('adapter_path', adapterPath);
+            form.append('output_name', outputName);
+
+            try {
+                var resp = await fetch('/api/finetune/fuse', { method: 'POST', body: form });
+                var data = await resp.json();
+                if (!resp.ok) {
+                    toast(data.detail || 'Fuse failed', 'error');
+                } else {
+                    var resultEl = document.getElementById('fuseResult');
+                    resultEl.innerHTML = 'Model fused to: <code>' + data.save_path + '</code>';
+                    resultEl.classList.remove('hidden');
+                    setStep(5);
+                    toast('Model fused successfully!', 'success');
+                }
+            } catch (e) {
+                toast('Fuse error: ' + e.message, 'error');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Fuse Model';
+        }
+
+        // Init
+        loadAdapters();
+    </script>
+</body>
+</html>

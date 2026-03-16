@@ -9,8 +9,15 @@ import wave
 
 from .casting import voice_for_speaker
 from .config import AppConfig
+from .emotion_tts import apply_pace_adjustment, emotion_to_dia_tag, emotion_to_qwen_descriptor, resolve_emotion
 from .mlx_registry import resolve_tts_model
 from .models import ProductionPackage, Scene
+from .sound_effects import (
+    write_ambience_bed,
+    write_closing_sting,
+    write_opening_fanfare,
+    write_scene_transition,
+)
 
 
 class Renderer(ABC):
@@ -40,8 +47,21 @@ class MacOSSayRenderer(Renderer):
         script_path = output_dir / "script.txt"
         script_path.write_text(render_script_text(package), encoding="utf-8")
 
-        segment_index = 0
+        # Opening fanfare
+        if config.audio.music_beds:
+            audio_segments.append(
+                write_opening_fanfare(wav_dir / "0000_opening_fanfare.wav", config.audio.sample_rate)
+            )
+
+        segment_index = 1 if config.audio.music_beds else 0
         for scene_index, scene in enumerate(package.scenes):
+            # Ambience bed before each scene
+            if config.audio.sound_effects:
+                ambience_path = wav_dir / f"{segment_index:04d}_ambience.wav"
+                write_ambience_bed(ambience_path, scene.ambience, config.audio.sample_rate)
+                audio_segments.append(ambience_path)
+                segment_index += 1
+
             audio_segments.extend(
                 self._render_scene(scene, segment_index, package, lines_dir, wav_dir, config)
             )
@@ -50,14 +70,26 @@ class MacOSSayRenderer(Renderer):
                 scene_index < len(package.scenes) - 1 or config.audio.include_closing_scene_gap
             )
             if should_add_gap:
-                audio_segments.append(
-                    _write_silence(
-                        wav_dir / f"{segment_index:04d}_scene_gap.wav",
-                        config.audio.scene_gap_ms,
-                        config.audio.sample_rate,
+                # Music bed transition instead of plain silence
+                if config.audio.music_beds:
+                    transition_path = wav_dir / f"{segment_index:04d}_transition.wav"
+                    write_scene_transition(transition_path, scene_index, config.audio.sample_rate)
+                    audio_segments.append(transition_path)
+                else:
+                    audio_segments.append(
+                        _write_silence(
+                            wav_dir / f"{segment_index:04d}_scene_gap.wav",
+                            config.audio.scene_gap_ms,
+                            config.audio.sample_rate,
+                        )
                     )
-                )
                 segment_index += 1
+
+        # Closing sting
+        if config.audio.music_beds:
+            audio_segments.append(
+                write_closing_sting(wav_dir / f"{segment_index:04d}_closing_sting.wav", config.audio.sample_rate)
+            )
 
         final_mix = output_dir / "radio_drama.wav"
         _concat_wavs(audio_segments, final_mix)
@@ -86,7 +118,7 @@ class MacOSSayRenderer(Renderer):
             aiff_path = lines_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}.aiff"
             wav_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}.wav"
             spoken_text = beat.text
-            self._speak(package, profile.character, spoken_text, aiff_path)
+            self._speak(package, profile.character, spoken_text, aiff_path, emotion=beat.emotion)
             _convert_to_wav(aiff_path, wav_path, config.audio.sample_rate)
             rendered.append(wav_path)
             gap_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_gap.wav"
@@ -100,15 +132,18 @@ class MacOSSayRenderer(Renderer):
         rendered.append(closing_wav)
         return rendered
 
-    def _speak(self, package: ProductionPackage, speaker: str, text: str, out_path: Path) -> None:
+    def _speak(
+        self, package: ProductionPackage, speaker: str, text: str, out_path: Path, emotion: str = ""
+    ) -> None:
         profile = voice_for_speaker(package.cast, speaker)
+        pace = apply_pace_adjustment(profile.pace_wpm, emotion) if emotion else profile.pace_wpm
         subprocess.run(
             [
                 "/usr/bin/say",
                 "-v",
                 profile.voice,
                 "-r",
-                str(profile.pace_wpm),
+                str(pace),
                 "-o",
                 str(out_path),
                 text,
@@ -137,7 +172,21 @@ class MLXAudioRenderer(Renderer):
         audio_segments: list[Path] = []
         segment_index = 0
 
+        # Opening fanfare
+        if config.audio.music_beds:
+            audio_segments.append(
+                write_opening_fanfare(wav_dir / "0000_opening_fanfare.wav", target_sample_rate)
+            )
+            segment_index = 1
+
         for scene_index, scene in enumerate(package.scenes):
+            # Ambience bed before each scene
+            if config.audio.sound_effects:
+                ambience_path = wav_dir / f"{segment_index:04d}_ambience.wav"
+                write_ambience_bed(ambience_path, scene.ambience, target_sample_rate)
+                audio_segments.append(ambience_path)
+                segment_index += 1
+
             audio_segments.extend(
                 self._render_scene(scene, segment_index, package, lines_dir, wav_dir, config, preset, target_sample_rate)
             )
@@ -146,14 +195,25 @@ class MLXAudioRenderer(Renderer):
                 scene_index < len(package.scenes) - 1 or config.audio.include_closing_scene_gap
             )
             if should_add_gap:
-                audio_segments.append(
-                    _write_silence(
-                        wav_dir / f"{segment_index:04d}_scene_gap.wav",
-                        config.audio.scene_gap_ms,
-                        target_sample_rate,
+                if config.audio.music_beds:
+                    transition_path = wav_dir / f"{segment_index:04d}_transition.wav"
+                    write_scene_transition(transition_path, scene_index, target_sample_rate)
+                    audio_segments.append(transition_path)
+                else:
+                    audio_segments.append(
+                        _write_silence(
+                            wav_dir / f"{segment_index:04d}_scene_gap.wav",
+                            config.audio.scene_gap_ms,
+                            target_sample_rate,
+                        )
                     )
-                )
                 segment_index += 1
+
+        # Closing sting
+        if config.audio.music_beds:
+            audio_segments.append(
+                write_closing_sting(wav_dir / f"{segment_index:04d}_closing_sting.wav", target_sample_rate)
+            )
 
         final_mix = output_dir / "radio_drama.wav"
         _concat_wavs(audio_segments, final_mix)
@@ -309,9 +369,11 @@ def _concat_wavs(parts: list[Path], output_path: Path) -> None:
 
 def _build_tts_text(preset_family: str, speaker: str, text: str, emotion: str) -> str:
     if preset_family == "dia":
-        return f"[S1] ({emotion or 'measured'}) {text}"
+        dia_cue = emotion_to_dia_tag(emotion) if emotion else "(measured)"
+        return f"[S1] {dia_cue} {text}"
     if preset_family == "qwen3-tts":
-        return f"{speaker}, {emotion or 'steady'}: {text}"
+        descriptor = emotion_to_qwen_descriptor(emotion) if emotion else "steady"
+        return f"{speaker}, {descriptor}: {text}"
     return text
 
 

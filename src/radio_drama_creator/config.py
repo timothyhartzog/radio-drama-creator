@@ -32,6 +32,8 @@ class AudioSettings:
     scene_gap_ms: int = 1200
     master_volume: float = 1.0
     include_closing_scene_gap: bool = False
+    music_beds: bool = False
+    sound_effects: bool = False
 
 
 @dataclass(slots=True)

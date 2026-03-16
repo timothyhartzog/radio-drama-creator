@@ -129,9 +129,39 @@ If MLX generation fails or returns malformed JSON, the app falls back to the heu
 
 The app records the resolved stack in `production_manifest.json` under `model_stack` so each output folder keeps a trace of which local MLX models were intended for the run.
 
-## Suggested next upgrades
+## Emotion-aware TTS
 
-1. Add a dedicated MLX TTS renderer with emotion-aware voice synthesis.
-2. Insert music beds and sound effects between scene transitions.
-3. Add drag-and-drop, audition buttons, and per-character voice overrides to the GUI.
-4. Let users tune genre, pacing, narrator ratio, and cast voices from a richer config screen.
+The MLX audio renderer maps each dialogue beat's emotion tag (e.g. `tense`, `urgent`, `haunted`, `joyful`) to synthesis parameters — pitch shift, speed, energy, and breathiness — so that the generated speech reflects the dramatic intent of each line. When using the Dia TTS family, emotions are converted to inline cues like `(gasps)`, `(whispering)`, or `(laughs softly)`. For Qwen3-TTS, emotions become natural-language descriptors such as `urgent, fast-paced, intense`. The macOS `say` renderer adjusts speaking pace per emotion.
+
+The full emotion vocabulary is defined in `src/radio_drama_creator/emotion_tts.py` and includes: measured, tense, urgent, anxious, haunted, tender, angry, fearful, sorrowful, joyful, suspicious, commanding, whispering, desperate, and sarcastic.
+
+## Music beds and sound effects
+
+Enable procedural music beds and ambient sound effects at scene transitions:
+
+```bash
+radio-drama examples/sample_source.txt --music-beds --sound-effects --output output
+```
+
+- `--music-beds` inserts an opening fanfare, minor-key chord transitions between scenes, and a closing dramatic sting
+- `--sound-effects` inserts short ambient texture beds before each scene, matched to the scene's ambience description (storms, darkness, bright mornings, etc.)
+
+Both options are also available in the GUI via checkboxes on the Production tab, and in the config JSON under `audio.music_beds` and `audio.sound_effects`.
+
+## GUI features
+
+The desktop GUI (`radio-drama-gui`) provides:
+
+- **Drag-and-drop**: Drop a document file onto the drop zone to load it (requires `tkinterdnd2`; falls back to click-to-browse)
+- **Audition buttons**: Click "Play" next to any character in the Cast & Voices tab to hear a test phrase with that voice and pace, or click "Audition line" on the Production tab for a narrator preview
+- **Per-character voice overrides**: Set a specific macOS or MLX voice and speaking pace (WPM) for each of the six cast roles
+- **Style & Pacing tab**: Tune genre, tone, decade flavor, number of scenes, lines per scene, and narration-to-dialogue ratio with dedicated controls
+- **Music beds and sound effects checkboxes**: Toggle procedural audio enhancements directly from the Production tab
+
+## CLI extras
+
+```bash
+radio-drama examples/sample_source.txt --genre noir --scenes 4 --lines-per-scene 10 --output output_noir
+radio-drama examples/sample_source.txt --tone "dark, brooding, intimate" --narration-ratio 0.4 --output output_custom
+radio-drama examples/sample_source.txt --music-beds --sound-effects --output output_full
+```

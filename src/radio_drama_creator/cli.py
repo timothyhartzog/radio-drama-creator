@@ -79,6 +79,25 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["say", "mlx_audio", "script"],
         help="Override audio renderer.",
     )
+    parser.add_argument(
+        "--tone",
+        help="Override the dramatic tone, for example 'suspenseful, theatrical, intimate'.",
+    )
+    parser.add_argument(
+        "--narration-ratio",
+        type=float,
+        help="Override the narration-to-dialogue ratio (0.0 to 1.0).",
+    )
+    parser.add_argument(
+        "--music-beds",
+        action="store_true",
+        help="Insert procedural music beds at scene transitions, opening, and closing.",
+    )
+    parser.add_argument(
+        "--sound-effects",
+        action="store_true",
+        help="Insert ambient sound effect beds before each scene.",
+    )
     return parser
 
 
@@ -130,6 +149,14 @@ def main() -> None:
         config.models.vision_backend = "mlx_vlm"
     if args.renderer:
         config.audio.renderer = args.renderer
+    if args.tone:
+        config.style.tone = args.tone
+    if args.narration_ratio is not None:
+        config.style.narration_ratio = max(0.0, min(1.0, args.narration_ratio))
+    if args.music_beds:
+        config.audio.music_beds = True
+    if args.sound_effects:
+        config.audio.sound_effects = True
     package = run_pipeline(args.source, args.output, config)
 
     output_dir = Path(package.output_dir)

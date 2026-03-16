@@ -18,6 +18,14 @@ from fastapi.templating import Jinja2Templates
 from ..config import AppConfig
 from ..metadata import get_ebook_metadata_with_cover
 from ..mlx_registry import available_model_presets
+from ..model_manager import (
+    check_model_downloaded,
+    delete_model,
+    download_model,
+    get_cache_summary,
+    get_model_info_from_hub,
+    list_local_models,
+)
 from ..pipeline import run_pipeline
 from ..utils.audio_utils import convert_audio_file_formats
 from ..utils.shell_utils import (
@@ -122,6 +130,12 @@ async def index(request: Request):
 async def catalog(request: Request):
     """Function and task catalog page."""
     return templates.TemplateResponse("catalog.html", {"request": request})
+
+
+@app.get("/models", response_class=HTMLResponse)
+async def models_page(request: Request):
+    """Model manager page."""
+    return templates.TemplateResponse("models.html", {"request": request})
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +440,77 @@ async def extract_text(
         converted = Path("converted_book.txt")
         text = converted.read_text(encoding="utf-8", errors="ignore") if converted.exists() else ""
         return {"method": method, "messages": messages, "char_count": len(text), "preview": text[:2000]}
+
+
+# ---------------------------------------------------------------------------
+# Model Manager
+# ---------------------------------------------------------------------------
+
+@app.get("/api/models/local")
+async def list_local():
+    """List all locally downloaded models."""
+    models = list_local_models()
+    summary = get_cache_summary()
+    return {
+        "models": [m.to_dict() for m in models],
+        "summary": summary,
+    }
+
+
+@app.get("/api/models/registry")
+async def list_registry():
+    """List all registry presets with local download status."""
+    presets = available_model_presets()
+    result = {}
+    for role, items in presets.items():
+        result[role] = []
+        for p in items:
+            result[role].append({
+                "key": p.key,
+                "repo": p.repo,
+                "family": p.family,
+                "role": p.role,
+                "notes": p.notes,
+                "sample_rate": p.sample_rate,
+                "downloaded": check_model_downloaded(p.repo),
+            })
+    return result
+
+
+@app.get("/api/models/info/{repo_id:path}")
+async def model_hub_info(repo_id: str):
+    """Fetch model info from HuggingFace Hub without downloading."""
+    if not repo_id or len(repo_id) > 200:
+        raise HTTPException(status_code=400, detail="Invalid repo ID.")
+    info = get_model_info_from_hub(repo_id)
+    if "error" in info:
+        raise HTTPException(status_code=422, detail=info["error"])
+    return info
+
+
+@app.post("/api/models/download")
+async def download_model_endpoint(repo_id: str = Form(...)):
+    """Download a model from HuggingFace Hub."""
+    if not repo_id or len(repo_id) > 200:
+        raise HTTPException(status_code=400, detail="Invalid repo ID.")
+
+    messages = list(download_model(repo_id))
+    success = any("complete" in m.lower() for m in messages)
+    if not success:
+        raise HTTPException(status_code=500, detail=messages[-1] if messages else "Download failed")
+    return {"status": "downloaded", "repo_id": repo_id, "messages": messages}
+
+
+@app.post("/api/models/delete")
+async def delete_model_endpoint(repo_id: str = Form(...)):
+    """Delete a model from the local cache."""
+    if not repo_id or len(repo_id) > 200:
+        raise HTTPException(status_code=400, detail="Invalid repo ID.")
+
+    result = delete_model(repo_id)
+    if result["status"] == "error":
+        raise HTTPException(status_code=422, detail=result["detail"])
+    return result
 
 
 def create_app() -> FastAPI:

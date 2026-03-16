@@ -287,9 +287,16 @@
 <body>
     <header>
         <h1>Radio Drama Creator</h1>
-        <div class="health">
-            <span class="dot" id="healthDot"></span>
-            <span id="healthText">Checking...</span>
+        <div style="display:flex;align-items:center;gap:1.5rem;">
+            <nav style="display:flex;gap:1rem;font-size:0.85rem;">
+                <a href="/" style="color:var(--primary);text-decoration:none;font-weight:600;">Producer</a>
+                <a href="/models" style="color:var(--muted);text-decoration:none;font-weight:500;">Models</a>
+                <a href="/catalog" style="color:var(--muted);text-decoration:none;font-weight:500;">Catalog</a>
+            </nav>
+            <div class="health">
+                <span class="dot" id="healthDot"></span>
+                <span id="healthText">Checking...</span>
+            </div>
         </div>
     </header>
 

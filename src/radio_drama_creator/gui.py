@@ -26,9 +26,11 @@ class RadioDramaApp:
         self.script_preset_var = tk.StringVar(value="qwen3-8b")
         self.tts_preset_var = tk.StringVar(value="dia-1.6b")
         self.status_var = tk.StringVar(value="Choose a document to begin.")
+        self.cast_overrides_var = tk.StringVar(value="")
 
         self._apply_light_theme()
         self._build_ui()
+        self._setup_drag_drop()
 
     def _apply_light_theme(self) -> None:
         """Configure a clean light theme for all ttk widgets."""
@@ -124,9 +126,16 @@ class RadioDramaApp:
         ttk.Button(controls, text="Show voices", command=self._show_voices).pack(side="right", padx=(0, 8))
         ttk.Button(controls, text="Create drama", command=self._start_run).pack(side="right")
 
-        ttk.Label(frame, text="Status").grid(row=5, column=0, sticky="w", pady=(18, 0))
+        controls2 = ttk.Frame(frame)
+        controls2.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        ttk.Button(controls2, text="Play audio", command=self._play_audio).pack(side="left")
+        ttk.Button(controls2, text="Stop", command=self._stop_audio).pack(side="left", padx=(6, 0))
+        ttk.Button(controls2, text="Preview voice", command=self._preview_voice).pack(side="left", padx=(18, 0))
+        ttk.Label(controls2, text="Cast overrides (Name=Voice, one per line)", style="Muted.TLabel").pack(side="left", padx=(18, 0))
+
+        ttk.Label(frame, text="Status").grid(row=6, column=0, sticky="w", pady=(18, 0))
         self.status_label = ttk.Label(frame, textvariable=self.status_var, style="Status.TLabel")
-        self.status_label.grid(row=5, column=1, columnspan=2, sticky="w", pady=(18, 0))
+        self.status_label.grid(row=6, column=1, columnspan=2, sticky="w", pady=(18, 0))
 
         self.log = tk.Text(
             frame, height=18, wrap="word",
@@ -137,11 +146,11 @@ class RadioDramaApp:
             borderwidth=1,
             font=("Courier New", 10),
         )
-        self.log.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(10, 0))
+        self.log.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=(10, 0))
         self.log.tag_configure("error", foreground=self._colors["danger"])
         self.log.tag_configure("success", foreground="#16a34a")
         self.log.tag_configure("info", foreground=self._colors["primary"])
-        frame.rowconfigure(6, weight=1)
+        frame.rowconfigure(7, weight=1)
 
     def _log_info(self, msg: str) -> None:
         self.log.insert(tk.END, msg + "\n", "info")
@@ -228,6 +237,12 @@ class RadioDramaApp:
                 "kokoro-82m": "mlx-community/Kokoro-82M-bf16",
             }
             config.audio.tts_model = preset_map.get(config.audio.tts_preset, config.audio.tts_model)
+            overrides_text = self.cast_overrides_var.get().strip()
+            if overrides_text:
+                for line in overrides_text.split(","):
+                    if "=" in line:
+                        char, voice = line.split("=", 1)
+                        config.casting.voice_overrides[char.strip()] = voice.strip()
             if not self.audio_var.get():
                 config.audio.renderer = "script"
 
@@ -265,6 +280,7 @@ class RadioDramaApp:
             path = Path(output_dir) / name
             if path.exists():
                 self._log_success(f"  {name} ({path.stat().st_size / 1024:.1f} KB)")
+        self._log_info("Use the Play button above to listen.")
 
     def _show_voices(self) -> None:
         try:
@@ -280,6 +296,71 @@ class RadioDramaApp:
         self.log.delete("1.0", tk.END)
         self._log_info(f"Available macOS voices ({len(voices)} total):")
         self.log.insert(tk.END, preview + "\n")
+
+    def _setup_drag_drop(self) -> None:
+        """Attempt to set up drag-and-drop support."""
+        try:
+            import tkinterdnd2
+            self.root.drop_target_register(tkinterdnd2.DND_FILES)
+            self.root.dnd_bind('<<Drop>>', self._on_drop)
+            self._log_info("Drag-and-drop enabled.")
+        except (ImportError, Exception):
+            pass  # tkinterdnd2 not available, use file dialogs instead
+
+    def _on_drop(self, event) -> None:
+        """Handle file drop events."""
+        path = event.data.strip().strip('{}')
+        if path:
+            self.source_var.set(path)
+            self._log_info(f"Dropped: {Path(path).name}")
+
+    def _play_audio(self) -> None:
+        """Play the produced radio drama audio."""
+        output = self.output_var.get().strip()
+        if not output:
+            return
+        audio_path = Path(output) / "radio_drama.wav"
+        if not audio_path.exists():
+            self._log_error("No audio file found. Run with audio rendering enabled.")
+            return
+        self._log_info(f"Playing {audio_path.name}...")
+        import sys
+        import subprocess
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["afplay", str(audio_path)])
+            elif sys.platform == "linux":
+                subprocess.Popen(["aplay", str(audio_path)])
+            else:
+                import os
+                os.startfile(str(audio_path))
+        except Exception as exc:
+            self._log_error(f"Could not play audio: {exc}")
+
+    def _stop_audio(self) -> None:
+        """Stop any playing audio."""
+        import subprocess
+        import sys
+        try:
+            if sys.platform == "darwin":
+                subprocess.run(["killall", "afplay"], capture_output=True)
+            elif sys.platform == "linux":
+                subprocess.run(["killall", "aplay"], capture_output=True)
+        except Exception:
+            pass
+
+    def _preview_voice(self) -> None:
+        """Preview the selected TTS voice with a sample line."""
+        import subprocess
+        import sys
+        sample = "From the velvet hush of the broadcast booth, our story begins."
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["/usr/bin/say", sample])
+            else:
+                self._log_info("Voice preview is only available on macOS.")
+        except Exception as exc:
+            self._log_error(f"Voice preview failed: {exc}")
 
 
 def main() -> None:

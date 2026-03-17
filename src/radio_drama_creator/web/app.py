@@ -226,6 +226,14 @@ async def produce_radio_drama(
     renderer: str = Form("script"),
     tts_preset: str = Form("dia-1.6b"),
     tone: str = Form("suspenseful, theatrical, intimate"),
+    decade_flavor: str = Form("1930s golden-age radio"),
+    narration_ratio: float = Form(0.25),
+    sample_rate: int = Form(22050),
+    line_gap_ms: int = Form(350),
+    scene_gap_ms: int = Form(1200),
+    sfx_enabled: bool = Form(False),
+    sfx_volume: float = Form(0.3),
+    music_volume: float = Form(0.2),
 ):
     """Run the full radio drama production pipeline."""
     file_path = _validate_file_id(file_id)
@@ -248,10 +256,18 @@ async def produce_radio_drama(
     config.style.scenes = scenes
     config.style.lines_per_scene = lines_per_scene
     config.style.tone = tone
+    config.style.decade_flavor = decade_flavor[:100]
+    config.style.narration_ratio = max(0.0, min(1.0, narration_ratio))
     config.models.script_backend = script_backend
     config.models.script_preset = script_preset
     config.audio.renderer = renderer
     config.audio.tts_preset = tts_preset
+    config.audio.sample_rate = max(8000, min(48000, sample_rate))
+    config.audio.line_gap_ms = max(0, min(5000, line_gap_ms))
+    config.audio.scene_gap_ms = max(0, min(10000, scene_gap_ms))
+    config.audio.sfx_enabled = sfx_enabled
+    config.audio.sfx_volume = max(0.0, min(1.0, sfx_volume))
+    config.audio.music_volume = max(0.0, min(1.0, music_volume))
 
     _jobs[job_id] = {"status": "running", "output_dir": str(job_output)}
     logger.info("Starting job %s for file %s", job_id, file_id)
@@ -511,6 +527,46 @@ async def delete_model_endpoint(repo_id: str = Form(...)):
     if result["status"] == "error":
         raise HTTPException(status_code=422, detail=result["detail"])
     return result
+
+
+PRESETS_DIR = Path(tempfile.gettempdir()) / "radio_drama_presets"
+PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+
+@app.post("/api/presets/save")
+async def save_preset(name: str = Form(...), config_json: str = Form(...)):
+    """Save a named configuration preset."""
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_ ")[:50].strip()
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Invalid preset name.")
+    try:
+        data = json.loads(config_json)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON.")
+    preset_path = PRESETS_DIR / f"{safe_name}.json"
+    preset_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return {"status": "saved", "name": safe_name}
+
+@app.get("/api/presets")
+async def list_presets():
+    """List saved configuration presets."""
+    presets = []
+    for p in sorted(PRESETS_DIR.glob("*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            presets.append({"name": p.stem, "config": data})
+        except (json.JSONDecodeError, OSError):
+            continue
+    return {"presets": presets}
+
+@app.delete("/api/presets/{name}")
+async def delete_preset(name: str):
+    """Delete a saved preset."""
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_ ")[:50].strip()
+    preset_path = PRESETS_DIR / f"{safe_name}.json"
+    if not preset_path.exists():
+        raise HTTPException(status_code=404, detail="Preset not found.")
+    preset_path.unlink()
+    return {"status": "deleted", "name": safe_name}
 
 
 def create_app() -> FastAPI:

@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.egg-info
+.git
+.github
+output*
+*.wav
+*.mp3
+*.flac
+.pytest_cache
+.ruff_cache

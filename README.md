@@ -131,7 +131,11 @@ The app records the resolved stack in `production_manifest.json` under `model_st
 
 ## Suggested next upgrades
 
-1. Add a dedicated MLX TTS renderer with emotion-aware voice synthesis.
+See [PRIORITIES.md](PRIORITIES.md) for the full roadmap with implementation details.
+
+1. ~~Add a dedicated MLX TTS renderer with emotion-aware voice synthesis.~~ *(done — MLXAudioRenderer + Kokoro renderer)*
 2. Insert music beds and sound effects between scene transitions.
-3. Add drag-and-drop, audition buttons, and per-character voice overrides to the GUI.
-4. Let users tune genre, pacing, narrator ratio, and cast voices from a richer config screen.
+3. Let users tune genre, pacing, narrator ratio, and cast voices from the web UI.
+4. Add drag-and-drop, audition buttons, and per-character voice overrides to the GUI.
+5. Polish emotion-aware TTS (vocabulary normalisation, Kokoro support, SSML hints).
+6. CI, packaging, and distribution (GitHub Actions, PyPI, Docker).

@@ -79,6 +79,15 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["say", "mlx_audio", "script"],
         help="Override audio renderer.",
     )
+    parser.add_argument(
+        "--sfx",
+        action="store_true",
+        help="Enable sound effects and music beds between scene transitions.",
+    )
+    parser.add_argument(
+        "--sfx-dir",
+        help="Path to a directory containing custom SFX WAV files.",
+    )
     return parser
 
 
@@ -130,6 +139,10 @@ def main() -> None:
         config.models.vision_backend = "mlx_vlm"
     if args.renderer:
         config.audio.renderer = args.renderer
+    if args.sfx:
+        config.audio.sfx_enabled = True
+    if args.sfx_dir:
+        config.audio.sfx_dir = args.sfx_dir
     package = run_pipeline(args.source, args.output, config)
 
     output_dir = Path(package.output_dir)

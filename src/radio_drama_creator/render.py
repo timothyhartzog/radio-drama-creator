@@ -9,8 +9,10 @@ import wave
 
 from .casting import voice_for_speaker
 from .config import AppConfig
+from .emotions import normalize_emotion
 from .mlx_registry import resolve_tts_model
 from .models import ProductionPackage, Scene
+from .sfx import build_scene_transition, build_cue_sound, mix_audio_bytes
 
 
 class Renderer(ABC):
@@ -50,13 +52,24 @@ class MacOSSayRenderer(Renderer):
                 scene_index < len(package.scenes) - 1 or config.audio.include_closing_scene_gap
             )
             if should_add_gap:
-                audio_segments.append(
-                    _write_silence(
-                        wav_dir / f"{segment_index:04d}_scene_gap.wav",
-                        config.audio.scene_gap_ms,
+                if config.audio.sfx_enabled:
+                    transition_pcm = build_scene_transition(
+                        scene.ambience,
+                        config.audio.transition_duration_ms,
                         config.audio.sample_rate,
+                        Path(config.audio.sfx_dir) if config.audio.sfx_dir else None,
                     )
-                )
+                    transition_path = wav_dir / f"{segment_index:04d}_transition.wav"
+                    _write_pcm_to_wav(transition_pcm, transition_path, config.audio.sample_rate)
+                    audio_segments.append(transition_path)
+                else:
+                    audio_segments.append(
+                        _write_silence(
+                            wav_dir / f"{segment_index:04d}_scene_gap.wav",
+                            config.audio.scene_gap_ms,
+                            config.audio.sample_rate,
+                        )
+                    )
                 segment_index += 1
 
         final_mix = output_dir / "radio_drama.wav"
@@ -74,6 +87,7 @@ class MacOSSayRenderer(Renderer):
         config: AppConfig,
     ) -> list[Path]:
         rendered: list[Path] = []
+        sfx_dir = Path(config.audio.sfx_dir) if config.audio.sfx_dir else None
 
         intro_aiff = lines_dir / f"{start_index:04d}_intro.aiff"
         intro_wav = wav_dir / f"{start_index:04d}_intro.wav"
@@ -88,6 +102,16 @@ class MacOSSayRenderer(Renderer):
             spoken_text = beat.text
             self._speak(package, profile.character, spoken_text, aiff_path)
             _convert_to_wav(aiff_path, wav_path, config.audio.sample_rate)
+
+            if config.audio.sfx_enabled and beat.cue:
+                cue_pcm = build_cue_sound(
+                    beat.cue, config.audio.line_gap_ms, config.audio.sample_rate, sfx_dir,
+                )
+                if cue_pcm is not None:
+                    dialogue_pcm = _read_wav_pcm(wav_path)
+                    mixed = mix_audio_bytes(dialogue_pcm, cue_pcm, config.audio.sfx_volume)
+                    _write_pcm_to_wav(mixed, wav_path, config.audio.sample_rate)
+
             rendered.append(wav_path)
             gap_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_gap.wav"
             rendered.append(_write_silence(gap_path, config.audio.line_gap_ms, config.audio.sample_rate))
@@ -146,13 +170,24 @@ class MLXAudioRenderer(Renderer):
                 scene_index < len(package.scenes) - 1 or config.audio.include_closing_scene_gap
             )
             if should_add_gap:
-                audio_segments.append(
-                    _write_silence(
-                        wav_dir / f"{segment_index:04d}_scene_gap.wav",
-                        config.audio.scene_gap_ms,
+                if config.audio.sfx_enabled:
+                    transition_pcm = build_scene_transition(
+                        scene.ambience,
+                        config.audio.transition_duration_ms,
                         target_sample_rate,
+                        Path(config.audio.sfx_dir) if config.audio.sfx_dir else None,
                     )
-                )
+                    transition_path = wav_dir / f"{segment_index:04d}_transition.wav"
+                    _write_pcm_to_wav(transition_pcm, transition_path, target_sample_rate)
+                    audio_segments.append(transition_path)
+                else:
+                    audio_segments.append(
+                        _write_silence(
+                            wav_dir / f"{segment_index:04d}_scene_gap.wav",
+                            config.audio.scene_gap_ms,
+                            target_sample_rate,
+                        )
+                    )
                 segment_index += 1
 
         final_mix = output_dir / "radio_drama.wav"
@@ -172,6 +207,7 @@ class MLXAudioRenderer(Renderer):
         sample_rate: int,
     ) -> list[Path]:
         rendered: list[Path] = []
+        sfx_dir = Path(config.audio.sfx_dir) if config.audio.sfx_dir else None
         intro_path = wav_dir / f"{start_index:04d}_intro.wav"
         self._speak_to_wav(package, "Narrator", scene.announcer_intro, intro_path, config, preset, sample_rate)
         rendered.append(intro_path)
@@ -179,6 +215,16 @@ class MLXAudioRenderer(Renderer):
         for offset, beat in enumerate(scene.beats, start=1):
             wav_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}.wav"
             self._speak_to_wav(package, beat.speaker, beat.text, wav_path, config, preset, sample_rate, emotion=beat.emotion)
+
+            if config.audio.sfx_enabled and beat.cue:
+                cue_pcm = build_cue_sound(
+                    beat.cue, config.audio.line_gap_ms, sample_rate, sfx_dir,
+                )
+                if cue_pcm is not None:
+                    dialogue_pcm = _read_wav_pcm(wav_path)
+                    mixed = mix_audio_bytes(dialogue_pcm, cue_pcm, config.audio.sfx_volume)
+                    _write_pcm_to_wav(mixed, wav_path, sample_rate)
+
             rendered.append(wav_path)
             gap_path = wav_dir / f"{start_index + offset:04d}_{beat.speaker.lower()}_gap.wav"
             rendered.append(_write_silence(gap_path, config.audio.line_gap_ms, sample_rate))
@@ -290,6 +336,22 @@ def _write_silence(path: Path, duration_ms: int, sample_rate: int) -> Path:
     return path
 
 
+def _read_wav_pcm(path: Path) -> bytes:
+    """Read raw PCM frames from an existing WAV file."""
+    with wave.open(str(path), "rb") as wf:
+        return wf.readframes(wf.getnframes())
+
+
+def _write_pcm_to_wav(pcm_data: bytes, path: Path, sample_rate: int) -> Path:
+    """Write raw PCM bytes (16-bit signed LE mono) as a WAV file."""
+    with wave.open(str(path), "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(pcm_data)
+    return path
+
+
 def _concat_wavs(parts: list[Path], output_path: Path) -> None:
     normalized = [path for path in parts if path.exists()]
     if not normalized:
@@ -308,10 +370,11 @@ def _concat_wavs(parts: list[Path], output_path: Path) -> None:
 
 
 def _build_tts_text(preset_family: str, speaker: str, text: str, emotion: str) -> str:
+    normalized = normalize_emotion(emotion, preset_family) if emotion else ""
     if preset_family == "dia":
-        return f"[S1] ({emotion or 'measured'}) {text}"
+        return f"[S1] ({normalized or 'measured'}) {text}"
     if preset_family == "qwen3-tts":
-        return f"{speaker}, {emotion or 'steady'}: {text}"
+        return f"{speaker}, {normalized or 'steady'}: {text}"
     return text
 
 

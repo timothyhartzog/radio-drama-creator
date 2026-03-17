@@ -21,7 +21,12 @@
     "sample_rate": 22050,
     "line_gap_ms": 350,
     "scene_gap_ms": 1200,
-    "include_closing_scene_gap": false
+    "include_closing_scene_gap": false,
+    "sfx_enabled": false,
+    "sfx_volume": 0.3,
+    "music_volume": 0.2,
+    "sfx_dir": "",
+    "transition_duration_ms": 2000
   },
   "style": {
     "scenes": 3,

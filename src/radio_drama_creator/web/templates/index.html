@@ -381,6 +381,60 @@
                     <input type="text" id="tone" value="suspenseful, theatrical, intimate">
                 </div>
             </div>
+            <details style="margin-top:1rem;">
+                <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--muted);user-select:none;">Advanced Settings</summary>
+                <div class="form-grid" style="margin-top:0.75rem;">
+                    <div class="form-group">
+                        <label>Decade Flavor</label>
+                        <input type="text" id="decadeFlavor" value="1930s golden-age radio">
+                    </div>
+                    <div class="form-group">
+                        <label>Narration Ratio (0-1)</label>
+                        <input type="number" id="narrationRatio" value="0.25" min="0" max="1" step="0.05">
+                    </div>
+                    <div class="form-group">
+                        <label>Sample Rate (Hz)</label>
+                        <select id="sampleRate">
+                            <option value="22050" selected>22050</option>
+                            <option value="24000">24000</option>
+                            <option value="44100">44100</option>
+                            <option value="48000">48000</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Line Gap (ms)</label>
+                        <input type="number" id="lineGapMs" value="350" min="0" max="5000" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Scene Gap (ms)</label>
+                        <input type="number" id="sceneGapMs" value="1200" min="0" max="10000" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label>SFX Enabled</label>
+                        <select id="sfxEnabled">
+                            <option value="false" selected>No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>SFX Volume (0-1)</label>
+                        <input type="number" id="sfxVolume" value="0.3" min="0" max="1" step="0.05">
+                    </div>
+                    <div class="form-group">
+                        <label>Music Volume (0-1)</label>
+                        <input type="number" id="musicVolume" value="0.2" min="0" max="1" step="0.05">
+                    </div>
+                </div>
+            </details>
+            <div style="margin-top:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="presetName" placeholder="Preset name" style="width:160px;">
+                <button class="secondary" onclick="savePreset()">Save Preset</button>
+                <select id="presetSelect" style="width:180px;">
+                    <option value="">Load a preset...</option>
+                </select>
+                <button class="secondary" onclick="loadPreset()">Load</button>
+                <button class="secondary danger" onclick="deletePreset()" style="font-size:0.8rem;">Delete</button>
+            </div>
             <div class="actions">
                 <button id="produceBtn" onclick="produce()" disabled>Produce Radio Drama</button>
             </div>
@@ -597,6 +651,14 @@
             form.append('renderer', document.getElementById('renderer').value);
             form.append('tts_preset', document.getElementById('ttsPreset').value);
             form.append('tone', document.getElementById('tone').value);
+            form.append('decade_flavor', document.getElementById('decadeFlavor').value);
+            form.append('narration_ratio', document.getElementById('narrationRatio').value);
+            form.append('sample_rate', document.getElementById('sampleRate').value);
+            form.append('line_gap_ms', document.getElementById('lineGapMs').value);
+            form.append('scene_gap_ms', document.getElementById('sceneGapMs').value);
+            form.append('sfx_enabled', document.getElementById('sfxEnabled').value);
+            form.append('sfx_volume', document.getElementById('sfxVolume').value);
+            form.append('music_volume', document.getElementById('musicVolume').value);
 
             fill.style.width = '40%';
             var result = await apiCall('/api/produce', { method: 'POST', body: form });
@@ -691,6 +753,86 @@
                 }
             }
         }
+
+        // --- Presets ---
+        async function loadPresetList() {
+            var result = await apiCall('/api/presets');
+            if (!result.ok) return;
+            var sel = document.getElementById('presetSelect');
+            sel.innerHTML = '<option value="">Load a preset...</option>';
+            (result.data.presets || []).forEach(function(p) {
+                var opt = document.createElement('option');
+                opt.value = p.name;
+                opt.textContent = p.name;
+                opt.dataset.config = JSON.stringify(p.config);
+                sel.appendChild(opt);
+            });
+        }
+
+        async function savePreset() {
+            var name = document.getElementById('presetName').value.trim();
+            if (!name) { toast('Enter a preset name.', 'warning'); return; }
+            var config = {
+                genre: document.getElementById('genre').value,
+                scenes: document.getElementById('scenes').value,
+                lines_per_scene: document.getElementById('linesPerScene').value,
+                script_backend: document.getElementById('scriptBackend').value,
+                script_preset: document.getElementById('scriptPreset').value,
+                renderer: document.getElementById('renderer').value,
+                tts_preset: document.getElementById('ttsPreset').value,
+                tone: document.getElementById('tone').value,
+                decade_flavor: document.getElementById('decadeFlavor').value,
+                narration_ratio: document.getElementById('narrationRatio').value,
+                sample_rate: document.getElementById('sampleRate').value,
+                line_gap_ms: document.getElementById('lineGapMs').value,
+                scene_gap_ms: document.getElementById('sceneGapMs').value,
+                sfx_enabled: document.getElementById('sfxEnabled').value,
+                sfx_volume: document.getElementById('sfxVolume').value,
+                music_volume: document.getElementById('musicVolume').value,
+            };
+            var form = new FormData();
+            form.append('name', name);
+            form.append('config_json', JSON.stringify(config));
+            var result = await apiCall('/api/presets/save', { method: 'POST', body: form });
+            if (result.ok) {
+                toast('Preset saved!', 'success');
+                loadPresetList();
+            }
+        }
+
+        async function loadPreset() {
+            var sel = document.getElementById('presetSelect');
+            var opt = sel.options[sel.selectedIndex];
+            if (!opt || !opt.dataset.config) { toast('Select a preset first.', 'warning'); return; }
+            var cfg = JSON.parse(opt.dataset.config);
+            Object.keys(cfg).forEach(function(key) {
+                var map = {
+                    genre: 'genre', scenes: 'scenes', lines_per_scene: 'linesPerScene',
+                    script_backend: 'scriptBackend', script_preset: 'scriptPreset',
+                    renderer: 'renderer', tts_preset: 'ttsPreset', tone: 'tone',
+                    decade_flavor: 'decadeFlavor', narration_ratio: 'narrationRatio',
+                    sample_rate: 'sampleRate', line_gap_ms: 'lineGapMs', scene_gap_ms: 'sceneGapMs',
+                    sfx_enabled: 'sfxEnabled', sfx_volume: 'sfxVolume', music_volume: 'musicVolume',
+                };
+                var el = document.getElementById(map[key] || key);
+                if (el) el.value = cfg[key];
+            });
+            toast('Preset loaded!', 'success');
+        }
+
+        async function deletePreset() {
+            var sel = document.getElementById('presetSelect');
+            var name = sel.value;
+            if (!name) { toast('Select a preset first.', 'warning'); return; }
+            var result = await apiCall('/api/presets/' + encodeURIComponent(name), { method: 'DELETE' });
+            if (result.ok) {
+                toast('Preset deleted.', 'success');
+                loadPresetList();
+            }
+        }
+
+        // Load presets on page load
+        loadPresetList();
     </script>
 </body>
 </html>

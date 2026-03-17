@@ -32,6 +32,11 @@ class AudioSettings:
     scene_gap_ms: int = 1200
     master_volume: float = 1.0
     include_closing_scene_gap: bool = False
+    sfx_enabled: bool = False
+    sfx_volume: float = 0.3
+    music_volume: float = 0.2
+    sfx_dir: str = ""
+    transition_duration_ms: int = 2000
 
 
 @dataclass(slots=True)

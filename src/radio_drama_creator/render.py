@@ -274,10 +274,16 @@ class MLXAudioRenderer(Renderer):
 
 
 def build_renderer(config: AppConfig) -> Renderer:
-    if config.audio.renderer.lower() == "script":
+    name = config.audio.renderer.lower()
+    if name == "script":
         return ScriptOnlyRenderer()
-    if config.audio.renderer.lower() == "mlx_audio":
+    if name == "mlx_audio":
         return MLXAudioRenderer()
+    # Check plugin registry for third-party renderers
+    from .plugins import registry
+    factory = registry.get_renderer(name)
+    if factory is not None:
+        return factory()
     return MacOSSayRenderer()
 
 

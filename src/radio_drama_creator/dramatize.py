@@ -91,8 +91,16 @@ class MLXScriptGenerator(ScriptGenerator):
 
 
 def build_script_generator(config: AppConfig) -> ScriptGenerator:
-    if config.models.script_backend.lower() == "mlx":
+    name = config.models.script_backend.lower()
+    if name == "mlx":
         return MLXScriptGenerator()
+    if name == "heuristic":
+        return HeuristicScriptGenerator()
+    # Check plugin registry for third-party script backends
+    from .plugins import registry
+    factory = registry.get_script_backend(name)
+    if factory is not None:
+        return factory()
     return HeuristicScriptGenerator()
 
 

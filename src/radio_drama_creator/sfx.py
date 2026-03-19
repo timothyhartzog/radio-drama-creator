@@ -27,9 +27,15 @@ _BUNDLED_SFX_DIR = Path(__file__).parent / "sfx"
 def resolve_sfx_asset(cue_text: str, sfx_dir: Path | None = None) -> Path | None:
     """Return the path to a WAV asset matching *cue_text*, or ``None``.
 
-    Checks a user-supplied *sfx_dir* first, then the bundled ``sfx/``
-    directory shipped with the package.
+    Checks registered SFX plugin packs first, then a user-supplied
+    *sfx_dir*, then the bundled ``sfx/`` directory shipped with the package.
     """
+    # Check plugin SFX packs first
+    from .plugins import registry
+    pack_result = registry.resolve_sfx_from_packs(cue_text)
+    if pack_result is not None:
+        return pack_result
+
     lowered = cue_text.lower()
     for keyword, filename in SFX_CATALOG.items():
         if keyword in lowered:
